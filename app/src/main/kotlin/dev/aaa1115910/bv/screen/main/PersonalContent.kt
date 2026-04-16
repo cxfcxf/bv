@@ -1,11 +1,6 @@
 package dev.aaa1115910.bv.screen.main
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -137,19 +132,9 @@ fun PersonalContent(
                     return@onKeyEvent false
                 },
         ) {
-            AnimatedContent(
+            Crossfade(
                 targetState = selectedTab,
-                label = "personal animated content",
-                transitionSpec = {
-                    val coefficient = 10
-                    if (reorderedItems.indexOf(targetState) < reorderedItems.indexOf(initialState)) {
-                        fadeIn() + slideInHorizontally { -it / coefficient } togetherWith
-                                fadeOut() + slideOutHorizontally { it / coefficient }
-                    } else {
-                        fadeIn() + slideInHorizontally { it / coefficient } togetherWith
-                                fadeOut() + slideOutHorizontally { -it / coefficient }
-                    }
-                }
+                label = "personal crossfade"
             ) { screen ->
                 when (screen) {
                     PersonalTopNavItem.ToView -> {

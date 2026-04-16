@@ -84,7 +84,9 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Tab
+import androidx.tv.material3.TabDefaults
 import androidx.tv.material3.TabRow
+import androidx.tv.material3.TabRowDefaults
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import dev.aaa1115910.biliapi.entity.ApiType
@@ -501,19 +503,13 @@ fun SeasonCover(
         modifier = modifier.onFocusChanged { hasFocus = it.hasFocus },
         onClick = onClick,
         shape = CardDefaults.shape(shape = MaterialTheme.shapes.large),
-        glow = CardDefaults.glow(
-            focusedGlow = Glow(
-                elevationColor = MaterialTheme.colorScheme.inverseSurface,
-                elevation = 16.dp
+        scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+        border = CardDefaults.border(
+            focusedBorder = Border(
+                border = BorderStroke(3.dp, Color(0xFFFF69B4)),
+                shape = MaterialTheme.shapes.large
             )
-        ),
-        border = if (Build.VERSION.SDK_INT < 31) {
-            CardDefaults.border()
-        } else {
-            CardDefaults.border(
-                focusedBorder = Border(BorderStroke(0.dp, Color.Transparent))
-            )
-        }
+        )
     ) {
         Box {
             AsyncImage(
@@ -609,7 +605,7 @@ fun SeasonInfoPart(
     Row(
         modifier = modifier
             .padding(horizontal = 50.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         SeasonCover(
@@ -772,6 +768,14 @@ fun SeasonEpisodesDialog(
                                 },
                             selectedTabIndex = selectedTabIndex,
                             separator = { Spacer(modifier = Modifier.width(12.dp)) },
+                            indicator = { tabPositions, doesTabRowHaveFocus ->
+                                TabRowDefaults.PillIndicator(
+                                    currentTabPosition = tabPositions[selectedTabIndex],
+                                    doesTabRowHaveFocus = doesTabRowHaveFocus,
+                                    activeColor = Color(0xFFFF69B4),
+                                    inactiveColor = Color(0xFFFF69B4).copy(alpha = 0.4f)
+                                )
+                            }
                         ) {
                             for (i in 0 until tabCount) {
                                 Tab(
@@ -780,6 +784,11 @@ fun SeasonEpisodesDialog(
                                     ) else Modifier,
                                     selected = i == selectedTabIndex,
                                     onFocus = { selectedTabIndex = i },
+                                    colors = TabDefaults.pillIndicatorTabColors(
+                                        focusedContentColor = Color.Black,
+                                        selectedContentColor = Color.White,
+                                        focusedSelectedContentColor = Color.Black
+                                    )
                                 ) {
                                     Text(
                                         text = "P${i * 20 + 1}-${(i + 1) * 20}",
@@ -878,7 +887,7 @@ fun SeasonEpisodeRow(
                 .padding(top = 15.dp)
                 .focusRestorer(focusRequester),
             contentPadding = PaddingValues(horizontal = 50.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 Surface(
@@ -1089,7 +1098,7 @@ private fun SeasonSelectorContent(
                     modifier = Modifier.padding(bottom = 48.dp),
                     state = rowState,
                     contentPadding = PaddingValues(horizontal = 48.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(items = seasons) { index, season ->
                         Card(
@@ -1105,19 +1114,13 @@ private fun SeasonSelectorContent(
                                     season.seasonId == currentSeasonId,
                                     Modifier.bringIntoViewRequester(bringIntoViewRequester)
                                 ),
-                            glow = CardDefaults.glow(
-                                focusedGlow = Glow(
-                                    elevationColor = MaterialTheme.colorScheme.inverseSurface,
-                                    elevation = 16.dp
+                            scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+                            border = CardDefaults.border(
+                                focusedBorder = Border(
+                                    border = BorderStroke(3.dp, Color(0xFFFF69B4)),
+                                    shape = MaterialTheme.shapes.large
                                 )
                             ),
-                            border = if (Build.VERSION.SDK_INT < 31) {
-                                CardDefaults.border()
-                            } else {
-                                CardDefaults.border(
-                                    focusedBorder = Border(BorderStroke(0.dp, Color.Transparent))
-                                )
-                            },
                             onClick = {
                                 onClickSeason(season.seasonId)
                             }

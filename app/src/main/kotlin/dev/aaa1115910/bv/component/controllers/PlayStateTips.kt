@@ -39,8 +39,7 @@ fun PlayStateTips(
         if (!isPlaying && !isBuffering && !isError) {
             PauseIcon(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp)
+                    .align(Alignment.Center)
             )
         }
         if (isBuffering && !isError) {

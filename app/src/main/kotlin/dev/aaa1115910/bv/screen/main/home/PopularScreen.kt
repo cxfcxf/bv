@@ -82,12 +82,12 @@ fun PopularScreen(
         state = gridState,
         columns = GridCells.Fixed(4),
         contentPadding = PaddingValues(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         itemsIndexed(
             items = popularViewModel.popularVideoList,
-            key = { index, _ -> index }
+            key = { _, item -> item.aid }
         ) { _, item ->
             SmallVideoCard(
                 data = remember(item) {         // `VideoCardData` 只在 item 变动时重建
