@@ -10,3 +10,5 @@
 /.idea/jarRepositories.xml
 /.idea/migrations.xml
 /.idea/codeStyles/
+libs
+debug.keystore
