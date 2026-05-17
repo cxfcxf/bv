@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -46,6 +49,8 @@ class BVApp : Application(), KoinComponent {
         @SuppressLint("StaticFieldLeak")
         var instance: BVApp? = null
             private set
+
+        val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         fun getAppDatabase(context: Context = this.context) = AppDatabase.getDatabase(context)
     }

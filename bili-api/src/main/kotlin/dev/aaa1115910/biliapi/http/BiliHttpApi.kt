@@ -92,6 +92,7 @@ import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -104,6 +105,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 object BiliHttpApi {
     private var endPoint: String = "api.bilibili.com"
     private lateinit var client: HttpClient
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val json = Json {
         coerceInputValues = true
@@ -123,7 +125,7 @@ object BiliHttpApi {
         this.buvid3 = buvid3
 
         createClient()
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             updateWbi()
         }
     }

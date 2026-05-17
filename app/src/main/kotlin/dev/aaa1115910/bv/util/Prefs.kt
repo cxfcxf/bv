@@ -24,7 +24,6 @@ import dev.aaa1115910.bv.entity.VideoCodec
 import dev.aaa1115910.bv.screen.main.LeftNaviItem
 import dev.aaa1115910.bv.screen.settings.content.ActionAfterPlayItems
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -306,7 +305,6 @@ class PrefDelegate<T, P>(
         return if (rawValue != null) restore(rawValue) else defaultValue
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         val persistValue = save(value)
 
@@ -315,7 +313,7 @@ class PrefDelegate<T, P>(
 
         // 2. 异步持久化
         BVApp.dataStoreManager.run {
-            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+            BVApp.applicationScope.launch(Dispatchers.IO) {
                 editPreference(key, persistValue)
             }
         }

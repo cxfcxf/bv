@@ -60,6 +60,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -310,8 +311,9 @@ class VideoPlayerV3ViewModel(
                     _uiState.value.subtitleList.find { it.id == id } ?: return@runCatching
                 subtitleName = subtitle.langDoc
                 logger.info { "Subtitle url: ${subtitle.url}" }
-                val client = HttpClient(OkHttp)
-                val responseText = client.get(subtitle.url).bodyAsText()
+                val responseText = HttpClient(OkHttp).use { client ->
+                    client.get(subtitle.url).bodyAsText()
+                }
                 val subtitleData = SubtitleParser.fromBccString(responseText)
                 _uiState.update {
                     it.copy(
@@ -1341,6 +1343,11 @@ class VideoPlayerV3ViewModel(
         val videoUrl: String,
         val audioUrl: String?
     )
+
+    override fun onCleared() {
+        super.onCleared()
+        detachedWorkScope.cancel()
+    }
 }
 
 sealed interface DanmakuSettingAction {
