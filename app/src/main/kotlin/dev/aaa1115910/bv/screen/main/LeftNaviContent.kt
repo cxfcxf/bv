@@ -1,7 +1,6 @@
 package dev.aaa1115910.bv.screen.main
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -130,12 +129,9 @@ private fun NavIcon(
     Box(
         modifier = modifier
             .size(40.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(if (isFocused) pink else Color.Transparent)
             .onFocusChanged { isFocused = it.hasFocus }
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) pink else Color.Transparent,
-                shape = MaterialTheme.shapes.small
-            )
             .selectionIndicator(if (isSelected) pink else Color.Transparent)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
@@ -154,7 +150,7 @@ private fun NavIcon(
                 modifier = Modifier.size(24.dp),
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isFocused || isSelected) pink else Color.White.copy(alpha = 0.8f)
+                tint = if (isFocused) Color.White else if (isSelected) pink else Color.White.copy(alpha = 0.8f)
             )
         }
     }
