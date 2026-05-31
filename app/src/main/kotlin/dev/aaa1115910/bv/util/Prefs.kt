@@ -18,6 +18,7 @@ import dev.aaa1115910.bv.component.PersonalTopNavItem
 import dev.aaa1115910.bv.component.controllers.DanmakuType
 import dev.aaa1115910.bv.component.controllers.playermenu.PlaySpeedItem
 import dev.aaa1115910.bv.entity.Audio
+import dev.aaa1115910.bv.entity.CdnType
 import dev.aaa1115910.bv.entity.PlayerType
 import dev.aaa1115910.bv.entity.Resolution
 import dev.aaa1115910.bv.entity.VideoCodec
@@ -99,6 +100,12 @@ object Prefs {
     var proxyHttpServer by pref(PrefKeys.prefProxyHttpServerKey, "")
     var proxyGRPCServer by pref(PrefKeys.prefProxyGRPCServerKey, "")
     var preferOfficialCdn by pref(PrefKeys.prefPreferOfficialCdn, false)
+    var preferredCdn by pref(
+        PrefKeys.prefPreferredCdn,
+        CdnType.Auto,
+        save = { it.ordinal },
+        restore = { CdnType.entries.getOrElse(it) { CdnType.Auto } }
+    )
 
     // =========================================================================
     // 播放器 - 视频
@@ -340,6 +347,7 @@ private object PrefKeys {
     val prefProxyHttpServerKey = stringPreferencesKey("proxy_http_server")
     val prefProxyGRPCServerKey = stringPreferencesKey("proxy_grpc_server")
     val prefPreferOfficialCdn = booleanPreferencesKey("prefer_official_cdn")
+    val prefPreferredCdn = intPreferencesKey("preferred_cdn")
 
     // 播放器 - 视频
     val prefDefaultQualityKey = intPreferencesKey("dq")

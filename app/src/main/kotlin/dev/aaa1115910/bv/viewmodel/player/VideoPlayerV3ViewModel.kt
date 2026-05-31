@@ -27,6 +27,7 @@ import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.R
 import dev.aaa1115910.bv.component.controllers.DanmakuType
 import dev.aaa1115910.bv.entity.Audio
+import dev.aaa1115910.bv.entity.CdnType
 import dev.aaa1115910.bv.entity.PlayerType
 import dev.aaa1115910.bv.entity.Resolution
 import dev.aaa1115910.bv.entity.VideoAspectRatio
@@ -1287,6 +1288,19 @@ class VideoPlayerV3ViewModel(
     }
 
     private fun selectOfficialCdnUrl(urls: List<String>): String {
+        val preferredCdn = Prefs.preferredCdn
+
+        // If a specific CDN is chosen, try to find a matching URL first
+        if (preferredCdn != CdnType.Auto) {
+            val keyword = preferredCdn.urlKeyword!!
+            val match = urls.firstOrNull { it.contains(keyword) }
+            if (match != null) {
+                logger.fInfo { "selected preferred cdn ($preferredCdn): $match" }
+                return match
+            }
+            logger.fInfo { "preferred cdn ($preferredCdn) not found in urls, falling back" }
+        }
+
         if (!Prefs.preferOfficialCdn) {
             logger.fInfo { "doesn't need to filter official cdn url, select the first url" }
             return urls.first()

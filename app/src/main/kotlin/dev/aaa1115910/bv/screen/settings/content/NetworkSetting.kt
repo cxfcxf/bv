@@ -37,6 +37,7 @@ import dev.aaa1115910.bv.R
 import dev.aaa1115910.bv.activities.settings.SpeedTestActivity
 import dev.aaa1115910.bv.component.settings.SettingListItem
 import dev.aaa1115910.bv.component.settings.SettingSwitchListItem
+import dev.aaa1115910.bv.entity.CdnType
 import dev.aaa1115910.bv.screen.settings.SettingsMenuNavItem
 import dev.aaa1115910.bv.ui.theme.BVTheme
 import dev.aaa1115910.bv.util.Prefs
@@ -52,6 +53,8 @@ fun NetworkSetting(
     var proxyHttpServer by remember { mutableStateOf(Prefs.proxyHttpServer) }
     var proxyGRPCServer by remember { mutableStateOf(Prefs.proxyGRPCServer) }
     var preferOfficialCdn by remember { mutableStateOf(Prefs.preferOfficialCdn) }
+    var selectedCdn by remember { mutableStateOf(Prefs.preferredCdn) }
+    var showCdnDialog by remember { mutableStateOf(false) }
     var showProxyHttpServerEditDialog by remember { mutableStateOf(false) }
     var showProxyGRPCServerEditDialog by remember { mutableStateOf(false) }
 
@@ -121,6 +124,14 @@ fun NetworkSetting(
 
                 item {
                     SettingListItem(
+                        title = stringResource(R.string.settings_network_preferred_cdn_title),
+                        supportText = selectedCdn.getDisplayName(context),
+                        onClick = { showCdnDialog = true }
+                    )
+                }
+
+                item {
+                    SettingListItem(
                         title = stringResource(R.string.settings_network_test_title),
                         supportText = stringResource(R.string.settings_network_test_text),
                         onClick = {
@@ -130,6 +141,19 @@ fun NetworkSetting(
                 }
             }
         }
+    }
+
+    if (showCdnDialog) {
+        OptionDialog(
+            options = CdnType.entries.toTypedArray(),
+            selectedOption = selectedCdn,
+            onDismiss = { showCdnDialog = false },
+            onSelect = {
+                selectedCdn = it
+                Prefs.preferredCdn = it
+            },
+            getDisplayName = { it.getDisplayName(context) }
+        )
     }
 
     ProxyServerEditDialog(
