@@ -12,7 +12,7 @@ import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.BuildConfig
 import dev.aaa1115910.bv.R
 import dev.aaa1115910.bv.util.Prefs
-import dev.aaa1115910.bv.util.addAllWithMainContext
+import dev.aaa1115910.bv.util.addAllDistinctWithMainContext
 import dev.aaa1115910.bv.util.fInfo
 import dev.aaa1115910.bv.util.fWarn
 import dev.aaa1115910.bv.util.toast
@@ -63,7 +63,7 @@ class DynamicViewModel(
             )
 
             currentPage = nextPage
-            dynamicList.addAllWithMainContext(data.videos)
+            dynamicList.addAllDistinctWithMainContext(data.videos) { it.aid }
 
             historyOffset = data.historyOffset
             updateBaseline = data.updateBaseline

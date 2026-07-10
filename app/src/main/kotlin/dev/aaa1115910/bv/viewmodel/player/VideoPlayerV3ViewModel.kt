@@ -257,6 +257,10 @@ class VideoPlayerV3ViewModel(
     fun initVideoPlayer(context: Context) {
         logger.info { "Init video player: ${Prefs.playerType.name}" }
 
+        // Activity 重建等场景下重复初始化时，先释放旧实例，避免泄漏播放线程与解码器
+        videoPlayer?.release()
+        videoPlayer = null
+
         val options = VideoPlayerOptions(
             userAgent = when (Prefs.apiType) {
                 ApiType.Web -> context.getString(R.string.video_player_user_agent_http)
@@ -286,6 +290,7 @@ class VideoPlayerV3ViewModel(
     }
 
     fun initDanmakuPlayer() {
+        danmakuPlayer?.release()
         danmakuPlayer = DanmakuPlayer(SimpleRenderer())
         initDanmakuConfig()
     }

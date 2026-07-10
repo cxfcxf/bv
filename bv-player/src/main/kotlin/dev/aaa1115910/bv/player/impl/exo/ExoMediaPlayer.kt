@@ -74,6 +74,9 @@ class ExoMediaPlayer(
             .setRenderersFactory(renderersFactory)
             .setSeekForwardIncrementMs(1000 * 10)
             .setSeekBackIncrementMs(1000 * 5)
+            // 默认 500ms 在电视盒子上不够硬件解码器完成释放，超时会强杀播放线程，
+            // 导致 DisplayListener/MediaCodec 泄漏，长时间使用后越来越卡
+            .setReleaseTimeoutMs(5_000)
             .build()
 
         initListener()

@@ -53,7 +53,7 @@ class TagViewModel : ViewModel() {
                 val newData = response.data
                 _uiState.update {
                     it.copy(
-                        videoList = it.videoList + newData,
+                        videoList = (it.videoList + newData).distinctBy { video -> video.aid },
                         noMore = newData.isEmpty(),
                         loading = false
                     )

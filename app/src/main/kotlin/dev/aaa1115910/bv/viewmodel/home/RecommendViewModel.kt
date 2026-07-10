@@ -10,7 +10,7 @@ import dev.aaa1115910.biliapi.entity.ugc.UgcItem
 import dev.aaa1115910.biliapi.repositories.RecommendVideoRepository
 import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.util.Prefs
-import dev.aaa1115910.bv.util.addAllWithMainContext
+import dev.aaa1115910.bv.util.addAllDistinctWithMainContext
 import dev.aaa1115910.bv.util.fError
 import dev.aaa1115910.bv.util.fInfo
 import dev.aaa1115910.bv.util.toast
@@ -63,7 +63,7 @@ class RecommendViewModel(
             )
             beforeAppendData()
             nextPage = recommendData.nextPage
-            recommendVideoList.addAllWithMainContext(recommendData.items)
+            recommendVideoList.addAllDistinctWithMainContext(recommendData.items) { it.aid }
         }.onFailure {
             logger.fError { "Load recommend video list failed: ${it.stackTraceToString()}" }
             withContext(Dispatchers.Main) {

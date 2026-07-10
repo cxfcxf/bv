@@ -81,6 +81,17 @@ suspend fun <T> SnapshotStateList<T>.swapListWithMainContext(
 suspend fun <T> SnapshotStateList<T>.addAllWithMainContext(newList: List<T>) =
     withContext(Dispatchers.Main) { addAll(newList) }
 
+/**
+ * 追加列表并按 [selector] 去重，避免分页接口返回重复项导致 LazyList key 冲突崩溃
+ */
+suspend fun <T, K> SnapshotStateList<T>.addAllDistinctWithMainContext(
+    newList: List<T>,
+    selector: (T) -> K
+) = withContext(Dispatchers.Main) {
+    val existingKeys = mapTo(HashSet()) { selector(it) }
+    addAll(newList.filter { existingKeys.add(selector(it)) })
+}
+
 suspend fun <T> SnapshotStateList<T>.addAllWithMainContext(newListBlock: suspend () -> List<T>) {
     val newList = newListBlock()
     withContext(Dispatchers.Main) { addAll(newList) }
