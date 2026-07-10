@@ -85,8 +85,10 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.readRawBytes
+import io.ktor.http.ContentType
 import io.ktor.http.Parameters
 import io.ktor.http.URLProtocol
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.InternalAPI
 import io.ktor.utils.io.jvm.javaio.toInputStream
@@ -96,7 +98,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import org.jsoup.nodes.Document
 import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
@@ -127,6 +132,40 @@ object BiliHttpApi {
         createClient()
         scope.launch {
             updateWbi()
+            activateBuvid()
+        }
+    }
+
+    /**
+     * 上报虚拟浏览器指纹 (ExClimbWuzhi) 以激活 buvid3
+     *
+     * 本地随机生成的 buvid3 未在服务端注册，直接调用 wbi 搜索等接口会触发风控，
+     * 返回 code 0 但 data 中只有 v_voucher 而无搜索结果
+     */
+    suspend fun activateBuvid() {
+        runCatching {
+            val fingerprint = buildJsonObject {
+                put("3064", 1)
+                put("5062", System.currentTimeMillis().toString())
+                put("03bf", "https%3A%2F%2Fwww.bilibili.com%2F")
+                put("39c8", "333.1007.fp.risk")
+                putJsonObject("3c43") {
+                    put("adca", "Win32")
+                    put(
+                        "b8ce",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+                    )
+                }
+                put("df35", buvid3)
+            }
+            val response = client.post("/x/internal/gaia-gateway/ExClimbWuzhi") {
+                contentType(ContentType.Application.Json)
+                header("referer", "https://www.bilibili.com/")
+                setBody(buildJsonObject { put("payload", fingerprint.toString()) })
+            }.body<BiliResponseWithoutData>()
+            println("Activate buvid3 result: code=${response.code}")
+        }.onFailure {
+            println("Activate buvid3 failed: ${it.message}")
         }
     }
 
