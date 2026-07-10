@@ -4,6 +4,7 @@ import dev.aaa1115910.biliapi.http.entity.user.Pendant
 import dev.aaa1115910.biliapi.http.entity.user.Vip
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonPrimitive
 
 @Serializable
 data class DynamicData(
@@ -65,7 +66,8 @@ data class DynamicItem(
             val face: String,
             @SerialName("face_nft")
             val faceNft: Boolean,
-            val following: Boolean = false,
+            // web 接口曾返回 true/false，2026-07 起返回 0/1，故用 JsonPrimitive 兼容两种格式
+            val following: JsonPrimitive? = null,
             @SerialName("jump_url")
             val jumpUrl: String,
             val label: String,
@@ -80,8 +82,9 @@ data class DynamicItem(
             val pubLocationText: String,
             @SerialName("pub_time")
             val pubTime: String,
+            // web 接口曾返回数字，2026-07 起返回字符串，故用 JsonPrimitive 兼容两种格式
             @SerialName("pub_ts")
-            val pubTs: Int,
+            val pubTs: JsonPrimitive? = null,
             val type: String,
             val vip: Vip
         ) {
