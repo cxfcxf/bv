@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -97,6 +98,7 @@ fun LeftNaviContent(
                 LeftNaviItem.Home,
                 LeftNaviItem.UGC,
                 LeftNaviItem.PGC,
+                LeftNaviItem.Live,
             ).forEach { item ->
                 NavIcon(
                     icon = item.displayIcon,
@@ -165,6 +167,7 @@ enum class LeftNaviItem(
     Home(displayIcon = Icons.Default.Home, displayName = "主页"),
     UGC(displayIcon = Icons.Default.OndemandVideo, displayName = "分区"),
     PGC(displayIcon = Icons.Default.Movie, displayName = "影视"),
+    Live(displayIcon = Icons.Default.Sensors, displayName = "直播"),
 }
 
 fun Modifier.selectionIndicator(color: Color): Modifier {

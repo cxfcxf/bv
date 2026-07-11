@@ -20,6 +20,7 @@ import io.ktor.utils.io.core.writePacket
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -60,21 +61,32 @@ object LiveDataWebSocket {
         }
     }
 
+    /**
+     * 连接直播间事件长连接，返回连接 Job，取消该 Job 即断开连接
+     *
+     * 2023 年后服务端要求握手包中的 uid 与 buvid 与获取 token 时使用的
+     * cookie 一致，否则连接成功但不会下发任何弹幕
+     */
     suspend fun connectLiveEvent(
         roomId: Int,
+        uid: Long = 0,
+        buvid: String = "",
+        sessData: String? = null,
         onEvent: (event: LiveEvent) -> Unit
-    ) {
-        val danmuInfo =
-            BiliLiveHttpApi.getLiveDanmuInfo(roomId).data ?: throw CancellationException()
-        val realRoomId =
-            BiliLiveHttpApi.getLiveRoomPlayInfo(roomId).data?.roomId
-                ?: throw CancellationException()
+    ): Job {
+        val danmuInfoResponse = BiliLiveHttpApi.getLiveDanmuInfo(roomId, sessData)
+        val danmuInfo = danmuInfoResponse.data
+            ?: throw IllegalStateException("获取弹幕服务器信息失败: code=${danmuInfoResponse.code}")
+        val roomPlayInfoResponse = BiliLiveHttpApi.getLiveRoomPlayInfo(roomId)
+        val realRoomId = roomPlayInfoResponse.data?.roomId
+            ?: throw IllegalStateException("获取直播间信息失败: code=${roomPlayInfoResponse.code}")
         val hosts = danmuInfo.hostList.last()
 
         val data = buildJsonObject {
-            put("uid", 0)
+            put("uid", uid)
             put("roomid", realRoomId)
             put("protover", 2)
+            put("buvid", buvid)
             put("platform", "web")
             put("type", 2)
             put("key", danmuInfo.token)
@@ -118,8 +130,9 @@ object LiveDataWebSocket {
             }
         }
         job.invokeOnCompletion {
-            it?.printStackTrace()
+            if (it != null && it !is CancellationException) it.printStackTrace()
         }
+        return job
     }
 
     private suspend fun handleLiveEventData(data: ByteArray): List<LiveEvent> {

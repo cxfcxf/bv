@@ -56,6 +56,10 @@
             android:label="@string/title_activity_video_player_v3"
             android:theme="@style/Theme.BV" />
         <activity
+            android:name=".activities.video.LivePlayerActivity"
+            android:exported="true"
+            android:theme="@style/Theme.BV" />
+        <activity
             android:name=".activities.video.TagActivity"
             android:exported="false"
             android:label="@string/title_activity_tag"

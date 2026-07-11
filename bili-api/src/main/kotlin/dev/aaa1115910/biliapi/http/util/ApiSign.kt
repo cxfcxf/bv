@@ -68,6 +68,28 @@ fun HttpRequestBuilder.encAppGet() {
     println("sign: $sign")
 }
 
+/**
+ * 计算 wbi 签名后的完整参数表（追加 wts 与 w_rid），
+ * 供无法使用 [encWbi] 拦截器的独立 HttpClient（如直播 API）使用
+ */
+suspend fun wbiSignedParams(params: Map<String, String>): Map<String, String> {
+    if (BiliHttpApi.wbiImgKey == null || BiliHttpApi.wbiSubKey == null) BiliHttpApi.updateWbi()
+    val mixinKey = getMixinKey(
+        requireNotNull(BiliHttpApi.wbiImgKey) { "wbiImgKey can't be null!" } +
+                requireNotNull(BiliHttpApi.wbiSubKey) { "wbiSubKey can't be null!" }
+    )
+    val signedParams = params.toMutableMap()
+    signedParams["wts"] = (System.currentTimeMillis() / 1000).toString()
+    val sortedParams = signedParams.toSortedMap()
+        .map { (key, value) ->
+            val filteredValue = value.filter { c -> c !in setOf('!', '\'', '(', ')', '*') }
+            "$key=$filteredValue"
+        }
+        .joinToString("&")
+    signedParams["w_rid"] = (sortedParams + mixinKey).md5()
+    return signedParams
+}
+
 suspend fun HttpRequestBuilder.encWbi() {
     if (BiliHttpApi.wbiImgKey == null || BiliHttpApi.wbiSubKey == null) BiliHttpApi.updateWbi()
     val mixinKey = getMixinKey(

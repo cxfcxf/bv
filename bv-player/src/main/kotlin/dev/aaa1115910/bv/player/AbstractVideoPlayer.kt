@@ -16,6 +16,9 @@ abstract class AbstractVideoPlayer {
     /** 设置播放地址 */
     abstract fun playUrl(videoUrl: String? = null, audioUrl: String? = null)
 
+    /** 设置直播拉流地址（HLS 或 FLV） */
+    open fun playLiveUrl(url: String) {}
+
     /** 准备开始播放 */
     abstract fun prepare()
 
