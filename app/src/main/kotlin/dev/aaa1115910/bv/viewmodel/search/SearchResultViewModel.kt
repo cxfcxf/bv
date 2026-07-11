@@ -12,8 +12,10 @@ import dev.aaa1115910.biliapi.repositories.SearchRepository
 import dev.aaa1115910.biliapi.repositories.SearchType
 import dev.aaa1115910.biliapi.repositories.SearchTypePage
 import dev.aaa1115910.biliapi.repositories.SearchTypeResult
+import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.R
 import dev.aaa1115910.bv.util.Partition
+import dev.aaa1115910.bv.util.toast
 import dev.aaa1115910.bv.util.Prefs
 import dev.aaa1115910.bv.util.fInfo
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -72,11 +74,27 @@ class SearchResultViewModel(
         searchType: SearchType,
         ignoreUpdating: Boolean = false
     ) {
-        if (!hasMore) return
-        if (updating && !ignoreUpdating) return
+        viewModelScope.launch(Dispatchers.IO) {
+            loadMoreSuspend(searchType, ignoreUpdating)
+        }
+    }
+
+    /**
+     * 加载下一页搜索结果
+     *
+     * @param notifyError 加载失败时是否弹出提示
+     * @return 是否加载成功（正在加载中视为成功，避免调用方重复重试）
+     */
+    suspend fun loadMoreSuspend(
+        searchType: SearchType,
+        ignoreUpdating: Boolean = false,
+        notifyError: Boolean = true
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (!hasMore) return@withContext true
+        if (updating && !ignoreUpdating) return@withContext true
 
         updating = true
-        viewModelScope.launch(Dispatchers.IO) {
+        try {
             val page = when (searchType) {
                 SearchType.Video -> videoSearchResult.page
                 SearchType.MediaBangumi -> mediaBangumiSearchResult.page
@@ -84,11 +102,12 @@ class SearchResultViewModel(
                 SearchType.BiliUser -> biliUserSearchResult.page
             }
             logger.fInfo { "Load search result: [keyword=$keyword, type=$searchType, page=${page}]" }
-            runCatching {
+            val result = runCatching {
                 val searchResultResponse = searchRepository.searchType(
                     keyword = keyword,
                     type = searchType,
                     page = page,
+                    pageSize = 50,
                     tid = selectedChildPartition?.tid ?: selectedPartition?.tid,
                     order = selectedOrder,
                     duration = selectedDuration,
@@ -99,7 +118,6 @@ class SearchResultViewModel(
                     when (searchType) {
                         SearchType.Video -> {
                             videoSearchResult = videoSearchResult.appendSearchResultData(searchResultResponse)
-
                         }
 
                         SearchType.MediaBangumi -> {
@@ -115,7 +133,16 @@ class SearchResultViewModel(
                         }
                     }
                 }
+            }.onFailure {
+                logger.fInfo { "Load search result failed: ${it.stackTraceToString()}" }
+                if (notifyError) {
+                    withContext(Dispatchers.Main) {
+                        "加载搜索结果失败: ${it.localizedMessage}".toast(BVApp.context)
+                    }
+                }
             }
+            return@withContext result.isSuccess
+        } finally {
             updating = false
         }
     }

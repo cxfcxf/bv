@@ -116,6 +116,7 @@ class SearchRepository(
         order: SearchFilterOrderType,
         duration: SearchFilterDuration,
         page: SearchTypePage,
+        pageSize: Int = 20,
         preferApiType: ApiType = ApiType.App,
         enableProxy: Boolean = false
     ): SearchTypeResult {
@@ -126,6 +127,7 @@ class SearchRepository(
                         keyword = keyword,
                         type = type.httpTypeParam,
                         page = page.nextPageForWeb,
+                        pageSize = pageSize,
                         tid = tid,
                         order = order.httpOrderParam,
                         duration = duration.httpDurationParam,
@@ -136,6 +138,7 @@ class SearchRepository(
                         keyword = keyword,
                         type = type.httpTypeParam,
                         page = page.nextPageForWeb,
+                        pageSize = pageSize,
                         tid = tid,
                         order = order.httpOrderParam,
                         duration = duration.httpDurationParam,

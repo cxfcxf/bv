@@ -72,6 +72,7 @@ import dev.aaa1115910.bv.util.toast
 import dev.aaa1115910.bv.viewmodel.search.SearchResultViewModel
 import dev.aaa1115910.bv.viewmodel.user.ToViewViewModel
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import org.koin.androidx.compose.koinViewModel
@@ -194,7 +195,17 @@ fun SearchResultScreen(
                 index != null && index >= searchResult.count - 20
             }
             .collect {
-                searchResultViewModel.loadMore(searchResult.type)
+                // 加载失败时自动重试：停留在列表底部时可见项索引不再变化，
+                // snapshotFlow 不会再发射新值，若不重试将永远卡在已加载的结果上
+                var retry = 0
+                while (
+                    !searchResultViewModel.loadMoreSuspend(
+                        searchResult.type,
+                        notifyError = retry == 2
+                    ) && retry++ < 2
+                ) {
+                    delay(3000)
+                }
             }
     }
 
