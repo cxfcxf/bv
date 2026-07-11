@@ -316,8 +316,8 @@ object LiveDataWebSocket {
             "WATCHED_CHANGE" -> {}
             "WIDGET_BANNER" -> {}
             else -> {
-                logger.warn { "Unknown live event: $cmd" }
-                logger.warn { dataJson }
+                // 未知事件种类繁多且携带大段 payload，打印完整内容会刷爆 logcat
+                logger.trace { "Unknown live event: $cmd" }
             }
         }
         return null

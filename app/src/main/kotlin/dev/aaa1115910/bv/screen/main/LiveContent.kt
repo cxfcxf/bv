@@ -77,6 +77,11 @@ fun LiveContent(
         }
     }
 
+    LaunchedEffect(liveViewModel.currentArea) {
+        // 切换标签页后加载新分区数据（switchArea 已取消旧请求并清空列表）
+        if (liveViewModel.liveRoomList.isEmpty()) liveViewModel.loadMore()
+    }
+
     LaunchedEffect(gridState, liveViewModel.currentArea) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .distinctUntilChanged()
@@ -84,7 +89,7 @@ fun LiveContent(
                 index != null && index >= liveViewModel.liveRoomList.size - 8
             }
             .collect {
-                scope.launch(Dispatchers.IO) { liveViewModel.loadMore() }
+                liveViewModel.loadMore()
             }
     }
 
@@ -98,11 +103,11 @@ fun LiveContent(
                 onSelectedChanged = { nav ->
                     val item = nav as LiveNavItem
                     liveViewModel.switchArea(item.area)
-                    scope.launch(Dispatchers.IO) { liveViewModel.loadMore() }
+                    liveViewModel.loadMore()
                 },
                 onClick = {
                     liveViewModel.clearRooms()
-                    scope.launch(Dispatchers.IO) { liveViewModel.loadMore() }
+                    liveViewModel.loadMore()
                 }
             )
         }
@@ -115,7 +120,7 @@ fun LiveContent(
                     if (it.key == Key.Menu) {
                         if (it.type == KeyEventType.KeyDown) return@onPreviewKeyEvent true
                         liveViewModel.clearRooms()
-                        scope.launch(Dispatchers.IO) { liveViewModel.loadMore() }
+                        liveViewModel.loadMore()
                         navFocusRequester.requestFocus()
                         return@onPreviewKeyEvent true
                     }

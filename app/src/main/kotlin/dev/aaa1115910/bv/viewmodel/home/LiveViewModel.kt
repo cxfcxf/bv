@@ -13,8 +13,12 @@ import dev.aaa1115910.bv.util.addAllDistinctWithMainContext
 import dev.aaa1115910.bv.util.fInfo
 import dev.aaa1115910.bv.util.fWarn
 import dev.aaa1115910.bv.util.toast
+import androidx.lifecycle.viewModelScope
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dev.aaa1115910.bv.repository.UserRepository as BvUserRepository
 import org.koin.android.annotation.KoinViewModel
@@ -46,6 +50,11 @@ class LiveViewModel(
 
     val isLogin get() = bvUserRepository.isLogin
 
+    private var loadJob: Job? = null
+
+    /** 每次清空列表时递增，用于丢弃迟到的旧请求结果 */
+    private var generation = 0
+
     suspend fun loadAreas() {
         if (areas.isNotEmpty()) return
         runCatching {
@@ -69,8 +78,9 @@ class LiveViewModel(
         clearRooms()
     }
 
-    suspend fun loadMore() {
-        if (!loading) loadData()
+    fun loadMore() {
+        if (loading) return
+        loadJob = viewModelScope.launch(Dispatchers.IO) { loadData() }
     }
 
     private suspend fun loadData() {
@@ -81,11 +91,13 @@ class LiveViewModel(
 
         loading = true
         val nextPage = currentPage + 1
+        val requestGeneration = generation
 
         try {
             if (area == null) {
                 logger.fInfo { "Load following live rooms page: $nextPage" }
                 val data = liveRepository.getFollowingLiveRooms(page = nextPage, pageSize = 20)
+                if (requestGeneration != generation) return
                 currentPage = nextPage
                 totalPage = data.totalPage
                 liveCount = data.liveCount
@@ -102,22 +114,31 @@ class LiveViewModel(
                     page = nextPage,
                     pageSize = 20
                 )
+                if (requestGeneration != generation) return
                 currentPage = nextPage
                 liveRoomList.addAllDistinctWithMainContext(rooms) { it.roomId }
                 hasMore = rooms.isNotEmpty()
             }
             logger.fInfo { "Loaded live page=$currentPage total=${liveRoomList.size}" }
+        } catch (e: CancellationException) {
+            // 快速切换标签页时取消上一个请求，避免旧分区数据写入新分区列表
+            throw e
         } catch (e: Exception) {
             logger.fWarn { "Load live rooms failed: ${e.stackTraceToString()}" }
-            withContext(Dispatchers.Main) {
-                "加载直播列表失败: ${e.localizedMessage}".toast(BVApp.context)
+            if (requestGeneration == generation) {
+                withContext(Dispatchers.Main) {
+                    "加载直播列表失败: ${e.localizedMessage}".toast(BVApp.context)
+                }
             }
         } finally {
-            loading = false
+            // 仅当仍是当前代的请求时才复位加载状态，避免旧请求干扰新标签页的加载
+            if (requestGeneration == generation) loading = false
         }
     }
 
     fun clearRooms() {
+        generation++
+        loadJob?.cancel()
         liveRoomList.clear()
         currentPage = 0
         totalPage = 1

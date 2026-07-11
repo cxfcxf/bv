@@ -25,8 +25,6 @@ import dev.aaa1115910.bv.util.Prefs
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.KoinApplication
-import org.koin.core.annotation.ComponentScan
-import org.koin.core.annotation.Module
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.context.startKoin
@@ -79,7 +77,7 @@ class BVApp : Application(), KoinComponent {
         koinApplication = startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.ERROR else Level.NONE)
             androidContext(this@BVApp)
-            modules(AppModule().module)
+            modules(AppModule().module, BiliApiModule().module)
         }
     }
 
@@ -125,7 +123,3 @@ class BVApp : Application(), KoinComponent {
 }
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "Settings")
-
-@Module(includes = [BiliApiModule::class])
-@ComponentScan
-class AppModule

@@ -4,11 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.aaa1115910.bv.component.DanmakuPlayerCompose
 import dev.aaa1115910.bv.component.LoadingTip
@@ -67,6 +72,36 @@ fun LivePlayerScreen(
                 contentAlignment = Alignment.Center
             ) {
                 LoadingTip()
+            }
+        }
+
+        // 缓冲/重连状态提示
+        if (!playerViewModel.loading &&
+            (playerViewModel.buffering || playerViewModel.reconnecting) &&
+            playerViewModel.errorMessage == null
+        ) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.6f),
+                        MaterialTheme.shapes.medium
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color(0xFFFF69B4),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = if (playerViewModel.reconnecting) "直播中断，重新连接中..." else "缓冲中...",
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
             }
         }
 
