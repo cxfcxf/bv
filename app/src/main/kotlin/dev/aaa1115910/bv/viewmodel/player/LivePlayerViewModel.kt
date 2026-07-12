@@ -54,6 +54,12 @@ class LivePlayerViewModel(
     var reconnecting by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
+    // 视频实际尺寸，用于竖屏直播（手机开播）的画面比例适配
+    var videoWidth by mutableStateOf(0)
+        private set
+    var videoHeight by mutableStateOf(0)
+        private set
+
     // 清晰度选单数据
     var currentQuality by mutableStateOf(Prefs.liveQuality)
         private set
@@ -86,6 +92,8 @@ class LivePlayerViewModel(
             bufferingWatchdogJob?.cancel()
             buffering = false
             reconnecting = false
+            videoWidth = videoPlayer?.videoWidth ?: 0
+            videoHeight = videoPlayer?.videoHeight ?: 0
         }
 
         override fun onPlay() {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -113,8 +114,16 @@ fun LivePlayerScreen(
             }
     ) {
         playerViewModel.videoPlayer?.let { player ->
+            // 竖屏直播（手机开播）按实际画面比例居中显示，避免被拉伸铺满
+            val aspectRatio =
+                if (playerViewModel.videoWidth > 0 && playerViewModel.videoHeight > 0) {
+                    playerViewModel.videoWidth / playerViewModel.videoHeight.toFloat()
+                } else 16 / 9f
             BvVideoPlayer(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(aspectRatio)
+                    .align(Alignment.Center),
                 videoPlayer = player
             )
         }
