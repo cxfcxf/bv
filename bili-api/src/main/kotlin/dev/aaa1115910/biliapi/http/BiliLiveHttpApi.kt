@@ -25,6 +25,10 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 object BiliLiveHttpApi {
+    private const val LIVE_APP_KEY = "iVGUTjsxvpLeuDCf"
+    private const val LIVE_APP_BUILD = 6215200
+    private const val LIVE_APP_VERSION = "6.21.5"
+
     private var endPoint: String = ""
     private lateinit var client: HttpClient
     private val logger = KotlinLogging.logger { }
@@ -160,5 +164,46 @@ object BiliLiveHttpApi {
             parameter("platform", "web")
             parameter("ptype", 8)
             header("Cookie", buildCookie(sessData))
+        }.body()
+
+    /**
+     * App 端直播播放信息。直播 App 接口是 HTTP REST，而不是普通视频使用的 gRPC。
+     *
+     * 该接口使用 Android 客户端身份，返回结构与 Web v2 播放信息兼容。
+     */
+    suspend fun getAppLiveRoomPlayInfoV2(
+        roomId: Long,
+        qn: Int = 10000,
+        accessKey: String? = null
+    ): BiliResponse<RoomPlayInfoV2Data> =
+        client.get("/xlive/app-room/v2/index/getRoomPlayInfo") {
+            parameter("room_id", roomId)
+            parameter("protocol", "0,1")
+            parameter("format", "0,2")
+            parameter("codec", 0)
+            parameter("qn", qn)
+            parameter("platform", "android")
+            parameter("mobi_app", "android")
+            parameter("device", "android")
+            parameter("device_name", "Android TV")
+            parameter("build", LIVE_APP_BUILD)
+            parameter("channel", "bili")
+            parameter("network", "wifi")
+            parameter("play_type", 0)
+            parameter("free_type", 0)
+            parameter("http", 1)
+            parameter("mask", 0)
+            parameter("no_playurl", 0)
+            parameter("only_audio", 0)
+            parameter("only_video", 0)
+            parameter("dolby", 1)
+            parameter("c_locale", "zh_CN")
+            parameter("s_locale", "zh_CN")
+            parameter("appkey", LIVE_APP_KEY)
+            parameter(
+                "statistics",
+                """{"appId":1,"platform":3,"version":"$LIVE_APP_VERSION","abtest":""}"""
+            )
+            accessKey?.takeIf { it.isNotBlank() }?.let { parameter("access_key", it) }
         }.body()
 }

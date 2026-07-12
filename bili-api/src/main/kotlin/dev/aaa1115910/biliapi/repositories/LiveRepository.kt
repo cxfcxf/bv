@@ -1,5 +1,6 @@
 package dev.aaa1115910.biliapi.repositories
 
+import dev.aaa1115910.biliapi.entity.ApiType
 import dev.aaa1115910.biliapi.entity.live.FollowingLiveList
 import dev.aaa1115910.biliapi.entity.live.LiveArea
 import dev.aaa1115910.biliapi.entity.live.LiveRoom
@@ -57,13 +58,22 @@ class LiveRepository(
      */
     suspend fun getLiveStream(
         roomId: Long,
-        qn: Int = 10000
+        qn: Int = 10000,
+        preferApiType: ApiType = ApiType.Web
     ): LiveStreamInfo {
-        val data = BiliLiveHttpApi.getLiveRoomPlayInfoV2(
-            roomId = roomId,
-            qn = qn,
-            sessData = authRepository.sessionData
-        ).getResponseData()
+        val data = when (preferApiType) {
+            ApiType.Web -> BiliLiveHttpApi.getLiveRoomPlayInfoV2(
+                roomId = roomId,
+                qn = qn,
+                sessData = authRepository.sessionData
+            )
+
+            ApiType.App -> BiliLiveHttpApi.getAppLiveRoomPlayInfoV2(
+                roomId = roomId,
+                qn = qn,
+                accessKey = authRepository.accessToken
+            )
+        }.getResponseData()
 
         val playurl = data.playurlInfo?.playurl
         val urls = mutableListOf<LiveStreamInfo.LiveStreamUrl>()

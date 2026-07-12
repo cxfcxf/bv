@@ -10,6 +10,7 @@ import com.kuaishou.akdanmaku.DanmakuConfig
 import com.kuaishou.akdanmaku.data.DanmakuItemData
 import com.kuaishou.akdanmaku.render.SimpleRenderer
 import com.kuaishou.akdanmaku.ui.DanmakuPlayer
+import dev.aaa1115910.biliapi.entity.ApiType
 import dev.aaa1115910.biliapi.http.entity.live.DanmakuEvent
 import dev.aaa1115910.biliapi.repositories.AuthRepository
 import dev.aaa1115910.biliapi.repositories.LiveRepository
@@ -58,6 +59,7 @@ class LivePlayerViewModel(
     private var danmakuId = 0L
     private var reconnectCount = 0
     private var released = false
+    private var selectedApiType = ApiType.Web
 
     private val playerListener = object : VideoPlayerListener {
         override fun onError(error: Exception) {
@@ -95,10 +97,17 @@ class LivePlayerViewModel(
 
     fun initPlayer(context: Context) {
         released = false
+        selectedApiType = Prefs.apiType
         videoPlayer?.release()
         val options = VideoPlayerOptions(
-            userAgent = context.getString(R.string.video_player_user_agent_http),
-            referer = "https://live.bilibili.com/",
+            userAgent = when (selectedApiType) {
+                ApiType.Web -> context.getString(R.string.video_player_user_agent_http)
+                ApiType.App -> context.getString(R.string.video_player_user_agent_client)
+            },
+            referer = when (selectedApiType) {
+                ApiType.Web -> "https://live.bilibili.com/"
+                ApiType.App -> null
+            },
             enableFfmpegAudioRenderer = Prefs.enableFfmpegAudioRenderer,
             enableSoftwareVideoDecoder = Prefs.enableSoftwareVideoDecoder
         )
@@ -126,7 +135,10 @@ class LivePlayerViewModel(
 
     private suspend fun loadStream() {
         runCatching {
-            val streamInfo = liveRepository.getLiveStream(roomId)
+            val streamInfo = liveRepository.getLiveStream(
+                roomId = roomId,
+                preferApiType = selectedApiType
+            )
             if (!streamInfo.living) {
                 withContext(Dispatchers.Main) { errorMessage = "主播已下播" }
                 return
@@ -145,7 +157,10 @@ class LivePlayerViewModel(
                 )
             ).firstOrNull()?.url ?: throw IllegalStateException("没有可用的直播流")
 
-            logger.fInfo { "Play live stream: room=$roomId qn=${streamInfo.currentQuality}" }
+            logger.fInfo {
+                "Play live stream: room=$roomId api=$selectedApiType " +
+                        "qn=${streamInfo.currentQuality}"
+            }
             logger.info { "Live stream url: $url" }
             withContext(Dispatchers.Main) {
                 errorMessage = null

@@ -82,6 +82,12 @@
 - Live danmaku WebSocket parsing: `bili-api/src/main/kotlin/dev/aaa1115910/biliapi/websocket/LiveDataWebSocket.kt`.
 - ExoPlayer can remain in `STATE_BUFFERING` without emitting an error or end event. The live player therefore displays buffering state and uses a 15-second watchdog to fetch a fresh signed stream URL, with up to five reconnect attempts.
 - Reset the reconnect-attempt counter only after `onPlay()`, not merely `onReady()`: `READY` can occur before frames actually resume.
+- Live playback must honor `Prefs.apiType`; the selected backend is authoritative and must not silently fall back to the other backend.
+- Web live playback uses `/xlive/web-room/v2/index/getRoomPlayInfo`, Web headers, and the live.bilibili.com referer.
+- App live playback is HTTP REST rather than gRPC. It uses `/xlive/app-room/v2/index/getRoomPlayInfo`, the regular Android live-client identity, App headers, and no Web referer. The repository-wide `android_hd` identity is rejected by this particular live endpoint.
+- Both live play-info endpoints map into the same `RoomPlayInfoV2Data`/`LiveStreamInfo` model. The App access token is optional for basic playback but should be sent when available for account-entitled qualities.
+- Live playback requests `qn=10000` (original/highest quality). Bilibili may return a lower `current_qn` based on the room or account. There is currently no live quality selector.
+- Only live play-info/stream URL acquisition follows `Prefs.apiType`. Live browsing currently uses a deliberate mixture of Web and App HTTP endpoints, while danmaku token discovery remains Web HTTP and messages use WebSocket.
 - Keep `AppModule` in its own `AppModule.kt` file. Defining it in `BVApp.kt`, which also references the generated `.module` extension, can cause Koin KSP to defer generation and break release compilation.
 - Load `AppModule().module` and `BiliApiModule().module` side by side in `BVApp`; avoid restoring the cross-module annotation include that triggered the KSP generation issue.
 
