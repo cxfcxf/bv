@@ -126,13 +126,52 @@ object BiliHttpApi {
     var buvid3: String = ""
         private set
 
+    // 风控要求的配套 cookie：buvid4 由服务端下发，其余本地生成
+    private var buvid4: String = ""
+    private var bNut: String = ""
+    private var uuidCookie: String = ""
+    private var bLsid: String = ""
+
     fun init(buvid3: String) {
         this.buvid3 = buvid3
+        bNut = (System.currentTimeMillis() / 1000).toString()
+        uuidCookie = java.util.UUID.randomUUID().toString().uppercase() +
+                (System.currentTimeMillis() % 100000).toString().padStart(5, '0') + "infoc"
+        bLsid = "%010X".format(kotlin.random.Random.nextLong(0, 1L shl 40)) +
+                "_" + "%X".format(System.currentTimeMillis())
 
         createClient()
         scope.launch {
+            updateBuvid4()
             updateWbi()
             activateBuvid()
+        }
+    }
+
+    /**
+     * 拼接风控所需的完整浏览器指纹 cookie，仅携带已激活的 buvid3 已不足以
+     * 通过 wbi 搜索等接口的风控校验，需带上 buvid4、b_nut、_uuid、b_lsid
+     */
+    fun fingerprintCookie(buvid3Override: String? = null): String = buildString {
+        append("buvid3=${buvid3Override ?: buvid3}; ")
+        if (buvid4.isNotBlank()) append("buvid4=$buvid4; ")
+        append("b_nut=$bNut; ")
+        append("_uuid=$uuidCookie; ")
+        append("b_lsid=$bLsid")
+    }
+
+    /**
+     * 从服务端获取 buvid4，与本地生成的 buvid3 一同作为浏览器指纹 cookie
+     */
+    private suspend fun updateBuvid4() {
+        runCatching {
+            val response = client.get("/x/frontend/finger/spi")
+                .body<BiliResponse<kotlinx.serialization.json.JsonObject>>()
+            buvid4 = response.data?.get("b_4")
+                ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: ""
+            println("Update buvid4 result: code=${response.code}")
+        }.onFailure {
+            println("Update buvid4 failed: ${it.message}")
         }
     }
 
@@ -161,6 +200,7 @@ object BiliHttpApi {
             val response = client.post("/x/internal/gaia-gateway/ExClimbWuzhi") {
                 contentType(ContentType.Application.Json)
                 header("referer", "https://www.bilibili.com/")
+                header("Cookie", fingerprintCookie())
                 setBody(buildJsonObject { put("payload", fingerprint.toString()) })
             }.body<BiliResponseWithoutData>()
             println("Activate buvid3 result: code=${response.code}")
@@ -1410,7 +1450,7 @@ object BiliHttpApi {
         tid?.let { parameter("tids", it) }
         order?.let { parameter("order", it) }
         duration?.let { parameter("duration", it) }
-        header("Cookie", "buvid3=$buvid3;")
+        header("Cookie", fingerprintCookie(buvid3))
     }.body()
 
     /**
@@ -1433,7 +1473,7 @@ object BiliHttpApi {
         tid?.let { parameter("tids", it) }
         order?.let { parameter("order", it) }
         duration?.let { parameter("duration", it) }
-        header("Cookie", "buvid3=$buvid3;")
+        header("Cookie", fingerprintCookie(buvid3))
         header("referer", "https://search.bilibili.com/")
     }.body()
 
