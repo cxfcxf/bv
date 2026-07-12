@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import dev.aaa1115910.bv.activities.video.LivePlayerActivity
 import dev.aaa1115910.bv.activities.video.UpInfoActivity
 import dev.aaa1115910.bv.activities.video.VideoInfoActivity
 import dev.aaa1115910.bv.component.TvLazyVerticalGrid
@@ -74,24 +75,36 @@ fun HistoryScreen(
                     SmallVideoCard(
                         data = history,
                         onClick = {
-                            VideoInfoActivity.actionStart(
-                                context = context,
-                                aid = history.avid,
-                                epid = history.epId,
-                                proxyArea = ProxyArea.checkProxyArea(history.title)
-                            )
+                            val liveRoomId = history.liveRoomId
+                            if (liveRoomId != null) {
+                                LivePlayerActivity.actionStart(
+                                    context = context,
+                                    roomId = liveRoomId,
+                                    title = history.title,
+                                    uname = history.upName
+                                )
+                            } else {
+                                VideoInfoActivity.actionStart(
+                                    context = context,
+                                    aid = history.avid,
+                                    epid = history.epId,
+                                    proxyArea = ProxyArea.checkProxyArea(history.title)
+                                )
+                            }
                         },
-                        onAddWatchLater = {
-                            toViewViewModel.addToView(history.avid)
-                        },
-                        onGoToDetailPage = {
-                            VideoInfoActivity.actionStart(
-                                context = context,
-                                fromController = true,
-                                aid = history.avid,
-                                epid = history.epId
-                            )
-                        },
+                        onAddWatchLater = if (history.liveRoomId == null) {
+                            { toViewViewModel.addToView(history.avid) }
+                        } else null,
+                        onGoToDetailPage = if (history.liveRoomId == null) {
+                            {
+                                VideoInfoActivity.actionStart(
+                                    context = context,
+                                    fromController = true,
+                                    aid = history.avid,
+                                    epid = history.epId
+                                )
+                            }
+                        } else null,
                         onGoToUpPage = history.upMid?.let {
                             { UpInfoActivity.actionStart(context, it, history.upName) }
                         }

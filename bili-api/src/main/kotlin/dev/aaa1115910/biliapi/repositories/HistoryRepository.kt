@@ -36,7 +36,7 @@ class HistoryRepository(
                     this.cursor = cursor {
                         max = cursor
                     }
-                    business = "archive"
+                    // business 留空返回全部业务类型（视频、剧集、直播）
                 })
                 HistoryData.fromHistoryResponse(reply!!)
             }

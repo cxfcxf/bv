@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.aaa1115910.biliapi.entity.user.HistoryItemType
 import dev.aaa1115910.biliapi.http.entity.AuthFailureException
 import dev.aaa1115910.biliapi.repositories.HistoryRepository
 import dev.aaa1115910.bv.BVApp
@@ -71,6 +72,7 @@ class HistoryViewModel(
             )
 
             data.data.forEach { historyItem ->
+                val isLive = historyItem.type == HistoryItemType.Live
                 histories.addWithMainContext(
                     VideoCardData(
                         avid = historyItem.oid,
@@ -78,13 +80,18 @@ class HistoryViewModel(
                         cover = historyItem.cover,
                         upName = historyItem.author,
                         upMid = historyItem.mid,
-                        timeString = if (historyItem.progress == -1) context.getString(R.string.play_time_finish)
-                        else context.getString(
-                            R.string.play_time_history,
-                            (historyItem.progress * 1000L).formatHourMinSec(),
-                            (historyItem.duration * 1000L).formatHourMinSec()
-                        ),
-                        pubTime = historyItem.viewAt.toSmartDate()
+                        timeString = when {
+                            isLive -> if (historyItem.living) "直播中" else "未开播"
+                            historyItem.progress == -1 -> context.getString(R.string.play_time_finish)
+                            else -> context.getString(
+                                R.string.play_time_history,
+                                (historyItem.progress * 1000L).formatHourMinSec(),
+                                (historyItem.duration * 1000L).formatHourMinSec()
+                            )
+                        },
+                        pubTime = historyItem.viewAt.toSmartDate(),
+                        liveRoomId = if (isLive) historyItem.oid else null,
+                        living = historyItem.living
                     )
                 )
             }
