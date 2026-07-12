@@ -108,6 +108,13 @@ object Prefs {
     )
 
     // =========================================================================
+    // 播放器 - 直播
+    // =========================================================================
+
+    /** 直播清晰度，记住上次手动选择的值，10000 为原画 */
+    var liveQuality by pref(PrefKeys.prefLiveQualityKey, 10000)
+
+    // =========================================================================
     // 播放器 - 视频
     // =========================================================================
 
@@ -348,6 +355,9 @@ private object PrefKeys {
     val prefProxyGRPCServerKey = stringPreferencesKey("proxy_grpc_server")
     val prefPreferOfficialCdn = booleanPreferencesKey("prefer_official_cdn")
     val prefPreferredCdn = intPreferencesKey("preferred_cdn")
+
+    // 播放器 - 直播
+    val prefLiveQualityKey = intPreferencesKey("live_quality")
 
     // 播放器 - 视频
     val prefDefaultQualityKey = intPreferencesKey("dq")

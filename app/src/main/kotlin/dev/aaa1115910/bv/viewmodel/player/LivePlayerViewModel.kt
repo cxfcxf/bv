@@ -17,6 +17,7 @@ import dev.aaa1115910.biliapi.repositories.LiveRepository
 import dev.aaa1115910.biliapi.websocket.LiveDataWebSocket
 import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.R
+import dev.aaa1115910.bv.entity.CdnType
 import dev.aaa1115910.bv.player.AbstractVideoPlayer
 import dev.aaa1115910.bv.player.VideoPlayerListener
 import dev.aaa1115910.bv.player.VideoPlayerOptions
@@ -53,6 +54,14 @@ class LivePlayerViewModel(
     var reconnecting by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
+    // 清晰度选单数据
+    var currentQuality by mutableStateOf(Prefs.liveQuality)
+        private set
+    var availableQualities by mutableStateOf(listOf<Int>())
+        private set
+    var qualityDescMap by mutableStateOf(mapOf<Int, String>())
+        private set
+
     private var danmakuJob: Job? = null
     private var reconnectJob: Job? = null
     private var bufferingWatchdogJob: Job? = null
@@ -60,6 +69,12 @@ class LivePlayerViewModel(
     private var reconnectCount = 0
     private var released = false
     private var selectedApiType = ApiType.Web
+
+    // 重连时轮换 CDN 节点（仅 CDN 设置为"自动"时启用），避免反复使用同一个较差的节点
+    private var urlRotation = 0
+
+    // 海外访问时 CDN 往往撑不住原画码率，短时间内频繁断流时自动降低清晰度
+    private val recentFailures = ArrayDeque<Long>()
 
     private val playerListener = object : VideoPlayerListener {
         override fun onError(error: Exception) {
@@ -137,14 +152,21 @@ class LivePlayerViewModel(
         runCatching {
             val streamInfo = liveRepository.getLiveStream(
                 roomId = roomId,
+                qn = currentQuality,
                 preferApiType = selectedApiType
             )
             if (!streamInfo.living) {
                 withContext(Dispatchers.Main) { errorMessage = "主播已下播" }
                 return
             }
+            withContext(Dispatchers.Main) {
+                availableQualities = streamInfo.acceptQualities
+                qualityDescMap = streamInfo.qualityDescMap
+                // 服务端可能不支持请求的清晰度而返回其他值，以实际返回为准
+                currentQuality = streamInfo.currentQuality
+            }
             // 优先 fmp4 HLS，其次 ts HLS，最后 FLV；均优先 avc 编码以保证兼容性
-            val url = streamInfo.urls.sortedWith(
+            val candidates = streamInfo.urls.sortedWith(
                 compareBy(
                     { it.codec != "avc" },
                     {
@@ -155,11 +177,15 @@ class LivePlayerViewModel(
                         }
                     }
                 )
-            ).firstOrNull()?.url ?: throw IllegalStateException("没有可用的直播流")
+            )
+            if (candidates.isEmpty()) throw IllegalStateException("没有可用的直播流")
+            val candidate = candidates[urlRotation % candidates.size]
+            val url = candidate.url
 
             logger.fInfo {
                 "Play live stream: room=$roomId api=$selectedApiType " +
-                        "qn=${streamInfo.currentQuality}"
+                        "qn=${streamInfo.currentQuality} " +
+                        "format=${candidate.format} rotation=$urlRotation/${candidates.size}"
             }
             logger.info { "Live stream url: $url" }
             withContext(Dispatchers.Main) {
@@ -203,11 +229,54 @@ class LivePlayerViewModel(
         buffering = false
         bufferingWatchdogJob?.cancel()
         reconnectCount++
+        // CDN 设置为"自动"时换一个节点重试，指定了 CDN 则固定使用默认节点
+        if (Prefs.preferredCdn == CdnType.Auto) urlRotation++
+        maybeDowngradeQuality()
         logger.fInfo { "Reconnect live stream: room=$roomId attempt=$reconnectCount" }
         reconnectJob = viewModelScope.launch(Dispatchers.IO) {
             delay(1000L * reconnectCount)
             if (!released) loadStream()
         }
+    }
+
+    /**
+     * 短暂播放成功会重置重连计数，因此单靠计数无法发现"播几秒就断"的循环。
+     * 60 秒内断流 3 次即认为当前清晰度码率超出网络承载能力，自动降低清晰度。
+     */
+    private fun maybeDowngradeQuality() {
+        val now = System.currentTimeMillis()
+        recentFailures.addLast(now)
+        while (recentFailures.isNotEmpty() && now - recentFailures.first() > 60_000) {
+            recentFailures.removeFirst()
+        }
+        if (recentFailures.size < 3) return
+        val lowerQn = availableQualities.filter { it < currentQuality }.maxOrNull() ?: return
+        recentFailures.clear()
+        val desc = qualityDescMap[lowerQn] ?: lowerQn.toString()
+        logger.fInfo { "Downgrade live quality to $lowerQn ($desc)" }
+        viewModelScope.launch(Dispatchers.Main) {
+            // 自动降级不写入偏好设置，下次进入直播间仍使用手动选择的清晰度
+            currentQuality = lowerQn
+            "直播不稳定，已自动切换至$desc".toast(BVApp.context)
+        }
+    }
+
+    /**
+     * 手动切换清晰度，同时记住选择，下次进入直播间沿用
+     */
+    fun switchQuality(qn: Int) {
+        if (qn == currentQuality) return
+        currentQuality = qn
+        Prefs.liveQuality = qn
+        recentFailures.clear()
+        reconnectCount = 0
+        urlRotation = 0
+        reconnectJob?.cancel()
+        bufferingWatchdogJob?.cancel()
+        reconnecting = false
+        buffering = true
+        logger.fInfo { "Switch live quality to $qn" }
+        viewModelScope.launch(Dispatchers.IO) { loadStream() }
     }
 
     /**

@@ -84,7 +84,8 @@ class LiveRepository(
                 format.codec.forEach { codec ->
                     currentQn = codec.currentQn
                     acceptQn.addAll(codec.acceptQn)
-                    codec.urlInfo.firstOrNull()?.let { urlInfo ->
+                    // 每个 codec 通常有多个 CDN 节点，全部保留供播放端在重连时轮换
+                    codec.urlInfo.forEach { urlInfo ->
                         urls.add(
                             LiveStreamInfo.LiveStreamUrl(
                                 url = urlInfo.host + codec.baseUrl + urlInfo.extra,
