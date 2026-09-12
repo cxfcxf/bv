@@ -759,4 +759,6 @@
     <string name="video_player_referer">https://www.bilibili.com</string>
     <string name="video_player_user_agent_client">Bilibili Freedoooooom/MarkII</string>
     <string name="video_player_user_agent_http">Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36</string>
+    <string name="player_switching_video_cdn">正在切换视频 CDN：%1$s</string>
+    <string name="player_switching_audio_cdn">正在切换音频 CDN：%1$s</string>
 </resources>

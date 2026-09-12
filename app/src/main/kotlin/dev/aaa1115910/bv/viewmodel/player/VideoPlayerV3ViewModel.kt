@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.media3.datasource.HttpDataSource
+import dev.aaa1115910.bv.util.PlaybackSources
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kuaishou.akdanmaku.DanmakuConfig
@@ -113,13 +115,16 @@ class VideoPlayerV3ViewModel(
     private var heartbeatJob: Job? = null
     private var loadVideoJob: Job? = null
 
+    private var activeSources: PlaybackSources? = null
+
     private var backToStartCountdownJob: Job? = null
     private var playNextCountdownJob: Job? = null
     private var previewTipCountdownJob: Job? = null
 
     private val videoPlayerListener = object : VideoPlayerListener {
         override fun onError(error: Exception) {
-            logger.info { "onError: $error" }
+            logger.error(error) { "Playback failed" }
+            if (recoverSource(error)) return
             _uiState.update {
                 it.copy(
                     playerState = PlayerState.Error(
@@ -285,6 +290,7 @@ class VideoPlayerV3ViewModel(
     fun detachPlayer() {
         syncProgress(scope = detachedWorkScope, isDetaching = true)
 
+        activeSources = null
         videoPlayer?.release()
         videoPlayer = null
     }
@@ -372,10 +378,11 @@ class VideoPlayerV3ViewModel(
             val currentPosition = player.currentPosition
 
             // 解析新配置下的 URL
-            val mediaUrls = resolveMediaUrls(new.qualityId, new.videoCodec, new.audio)
+            val mediaUrls = resolvePlaybackSources(new.qualityId, new.videoCodec, new.audio)
 
             if (mediaUrls != null) {
                 // 执行播放逻辑
+                activeSources = mediaUrls
                 player.playUrl(mediaUrls.videoUrl, mediaUrls.audioUrl)
                 player.prepare()
                 if (currentPosition > 0) {
@@ -620,6 +627,7 @@ class VideoPlayerV3ViewModel(
         val cid = state.cid
         val epid = state.epid
 
+        activeSources = null
         loadVideoJob?.cancel()
         loadVideoJob = viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -651,7 +659,7 @@ class VideoPlayerV3ViewModel(
 
     private suspend fun resolveUrlsAndPlay(avid: Long, cid: Long, epid: Int? = 0) {
         try {
-            val mediaUrls = fetchMediaUrls(avid, cid, epid ?: 0)
+            val mediaUrls = fetchPlaybackSources(avid, cid, epid ?: 0)
 
             withContext(Dispatchers.Main) {
                 executePlayback(mediaUrls)
@@ -667,14 +675,14 @@ class VideoPlayerV3ViewModel(
 
     }
 
-    private suspend fun fetchMediaUrls(avid: Long, cid: Long, epid: Int): MediaUrls {
+    private suspend fun fetchPlaybackSources(avid: Long, cid: Long, epid: Int): PlaybackSources {
         val config = loadPlaybackConfig(
             avid, cid, epid,
             Prefs.apiType,
             _uiState.value.proxyArea
         )
 
-        return resolveMediaUrls(
+        return resolvePlaybackSources(
             config.qn,
             config.codec,
             config.audio
@@ -837,11 +845,11 @@ class VideoPlayerV3ViewModel(
         return targetVideoCodec
     }
 
-    private fun resolveMediaUrls(
+    private fun resolvePlaybackSources(
         qn: Int? = null,
         codec: VideoCodec? = null,
         audio: Audio? = null
-    ): MediaUrls? {
+    ): PlaybackSources? {
         val currentPlayData = playData ?: return null
 
         val state = _uiState.value
@@ -908,16 +916,59 @@ class VideoPlayerV3ViewModel(
             )
         }
 
-        return MediaUrls(videoUrl, audioUrl)
+        // Keep the API-provided mirrors for each track. Proxy URLs must stay on
+        // their configured route, so do not mix direct backups into proxy playback.
+        val proxied = Prefs.enableProxy && state.proxyArea != ProxyArea.MainLand
+        return PlaybackSources(
+            videoUrls = (listOf(videoUrl) + if (proxied) emptyList() else videoUrls.filterNotNull()).distinct(),
+            audioUrls = (listOfNotNull(audioUrl) + if (proxied) emptyList() else audioUrls).distinct()
+        )
     }
 
-    private fun executePlayback(mediaUrls: MediaUrls) {
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun recoverSource(error: Exception): Boolean {
+        val failure = generateSequence<Throwable>(error) { it.cause }
+            .filterIsInstance<HttpDataSource.HttpDataSourceException>()
+            .firstOrNull() ?: return false
+        val current = activeSources ?: return false
+        val failedUrl = failure.dataSpec.uri.toString()
+        logger.warn {
+            "Media request failed: host=${failure.dataSpec.uri.host}, " +
+                "position=${failure.dataSpec.position}, cause=${failure.cause}"
+        }
+        val next = current.afterFailure(failedUrl) ?: return false
+        val player = videoPlayer ?: return false
+        val position = player.currentPosition.coerceAtLeast(0L)
+        logger.info {
+            "Retrying alternate CDN at ${position}ms: " +
+                "video=${Uri.parse(next.videoUrl).host}, audio=${next.audioUrl?.let { Uri.parse(it).host }}"
+        }
+        // Consume the failed candidate before preparing; never reset on onPlay,
+        // otherwise streams that fail after a few seconds can loop indefinitely.
+        activeSources = next
+        val isVideo = failedUrl == current.videoUrl
+        val nextUrl = if (isVideo) next.videoUrl else next.audioUrl
+        viewModelScope.launch {
+            _uiEffect.emit(
+                PlayerUiEffect.SwitchingCdn(isVideo, nextUrl?.let { Uri.parse(it).host }.orEmpty())
+            )
+        }
+        _uiState.update { it.copy(isBuffering = true) }
+        player.playUrl(next.videoUrl, next.audioUrl)
+        player.prepare()
+        player.seekTo(position)
+        player.start()
+        return true
+    }
+
+    private fun executePlayback(mediaUrls: PlaybackSources) {
         val player = videoPlayer ?: run {
             logger.error { "VideoPlayer is not initialized!" }
             return
         }
 
         logger.info { "Execute playback -> Video: ${mediaUrls.videoUrl}, Audio: ${mediaUrls.audioUrl}" }
+        activeSources = mediaUrls
         player.playUrl(mediaUrls.videoUrl, mediaUrls.audioUrl)
         player.prepare()
         player.start()
@@ -1356,11 +1407,6 @@ class VideoPlayerV3ViewModel(
         val qn: Int,           // 画质 ID
         val codec: VideoCodec?,     // 编码格式
         val audio: Audio      // 音频配置
-    )
-
-    private data class MediaUrls(
-        val videoUrl: String,
-        val audioUrl: String?
     )
 
     override fun onCleared() {

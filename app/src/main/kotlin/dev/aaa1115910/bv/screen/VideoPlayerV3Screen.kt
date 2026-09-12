@@ -1,6 +1,8 @@
 package dev.aaa1115910.bv.screen
 
 import android.app.Activity
+import android.widget.Toast
+import dev.aaa1115910.bv.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -65,6 +67,15 @@ fun VideoPlayerV3Screen(
     LaunchedEffect(Unit) {
         playerViewModel.uiEffect.collect { effect ->
             when (effect) {
+                is PlayerUiEffect.SwitchingCdn -> {
+                    val message = context.getString(
+                        if (effect.isVideo) R.string.player_switching_video_cdn
+                        else R.string.player_switching_audio_cdn,
+                        effect.host
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+
                 PlayerUiEffect.FinishActivity -> {
                     (context as Activity).finish()
                 }
