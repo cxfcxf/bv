@@ -54,6 +54,7 @@ import dev.aaa1115910.bv.entity.carddata.VideoCardData
 import dev.aaa1115910.bv.ui.theme.BVTheme
 import dev.aaa1115910.bv.util.ImageSize
 import dev.aaa1115910.bv.util.resizedImageUrl
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 
 @Composable
@@ -83,7 +84,7 @@ fun SmallVideoCard(
     }
 
     var cardFocused by remember { mutableStateOf(false) }
-    val pinkBg = remember { Color(0xFFFF69B4).copy(alpha = 0.35f) }
+    val pinkBg = LocalFocusColor.current.copy(alpha = 0.35f)
     val shape = MaterialTheme.shapes.large
 
     Column(
@@ -217,7 +218,7 @@ fun CardCover(
                     .align(Alignment.TopStart)
                     .padding(6.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFFFF69B4))
+                    .background(LocalFocusColor.current)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(

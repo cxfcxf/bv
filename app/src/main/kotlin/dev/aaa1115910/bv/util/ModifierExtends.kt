@@ -27,6 +27,7 @@ import com.caverock.androidsvg.SVG
 import dev.aaa1115910.biliapi.entity.danmaku.DanmakuMaskFrame
 import dev.aaa1115910.biliapi.entity.danmaku.DanmakuMobMaskFrame
 import dev.aaa1115910.biliapi.entity.danmaku.DanmakuWebMaskFrame
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 /**
  * 获取到焦点时显示白色边框
@@ -36,7 +37,7 @@ fun Modifier.focusedBorder(
     animate: Boolean = false
 ): Modifier = composed {
     var hasFocus by remember { mutableStateOf(false) }
-    val pink = Color(0xFFFF69B4)
+    val pink = LocalFocusColor.current
     val borderColor = if (hasFocus) pink else Color.Transparent
 
     onFocusChanged { hasFocus = it.hasFocus }

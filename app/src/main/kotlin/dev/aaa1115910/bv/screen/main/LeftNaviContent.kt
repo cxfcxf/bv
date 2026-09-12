@@ -46,6 +46,7 @@ import coil.compose.AsyncImage
 import dev.aaa1115910.bv.ui.theme.BVTheme
 import dev.aaa1115910.bv.util.isDpadRight
 import dev.aaa1115910.bv.util.isKeyDown
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun LeftNaviContent(
@@ -126,7 +127,7 @@ private fun NavIcon(
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val pink = Color(0xFFFF69B4)
+    val pink = LocalFocusColor.current
 
     Box(
         modifier = modifier

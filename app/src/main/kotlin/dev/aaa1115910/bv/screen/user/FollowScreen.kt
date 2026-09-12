@@ -50,6 +50,7 @@ import dev.aaa1115910.bv.ui.theme.BVTheme
 import dev.aaa1115910.bv.util.requestFocus
 import dev.aaa1115910.bv.viewmodel.user.FollowViewModel
 import org.koin.androidx.compose.koinViewModel
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun FollowScreen(
@@ -173,7 +174,7 @@ fun UpCard(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(width = 3.dp, color = Color(0xFFFF69B4)),
+                border = BorderStroke(width = 3.dp, color = LocalFocusColor.current),
                 shape = MaterialTheme.shapes.large
             )
         ),

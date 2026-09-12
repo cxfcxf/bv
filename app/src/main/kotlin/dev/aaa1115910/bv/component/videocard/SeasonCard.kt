@@ -42,6 +42,7 @@ import coil.compose.AsyncImage
 import dev.aaa1115910.bv.component.TvLazyVerticalGrid
 import dev.aaa1115910.bv.entity.carddata.SeasonCardData
 import dev.aaa1115910.bv.ui.theme.BVTheme
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun SeasonCard(
@@ -68,7 +69,7 @@ fun SeasonCard(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(width = 3.dp, color = Color(0xFFFF69B4)),
+                border = BorderStroke(width = 3.dp, color = LocalFocusColor.current),
                 shape = MaterialTheme.shapes.large
             )
         )

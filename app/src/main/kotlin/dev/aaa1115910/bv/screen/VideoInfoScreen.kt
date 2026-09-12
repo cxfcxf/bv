@@ -131,6 +131,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.ceil
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -660,12 +661,13 @@ fun VideoInfoData(
                     onAddToDefaultFavoriteFolder = onAddToDefaultFavoriteFolder,
                     onUpdateFavoriteFolders = onUpdateFavoriteFolders
                 )
+                // LazyListScope 不是 @Composable，焦点色要在外面取好
+                val pink = LocalFocusColor.current
                 LazyRow(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 5.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val pink = Color(0xFFFF69B4)
                     items(items = tags) { tag ->
                         SuggestionChip(
                             onClick = { onClickTip(tag) },
@@ -1129,7 +1131,7 @@ private fun VideoPartListDialog(
                         selectedTabIndex = selectedTabIndex,
                         separator = { Spacer(modifier = Modifier.width(12.dp)) },
                         indicator = { tabPositions, doesTabRowHaveFocus ->
-                            val pink = Color(0xFFFF69B4)
+                            val pink = LocalFocusColor.current
                             TabRowDefaults.PillIndicator(
                                 currentTabPosition = tabPositions[selectedTabIndex],
                                 doesTabRowHaveFocus = doesTabRowHaveFocus,
@@ -1250,7 +1252,7 @@ private fun VideoUgcListDialog(
                         selectedTabIndex = selectedTabIndex,
                         separator = { Spacer(modifier = Modifier.width(12.dp)) },
                         indicator = { tabPositions, doesTabRowHaveFocus ->
-                            val pink = Color(0xFFFF69B4)
+                            val pink = LocalFocusColor.current
                             TabRowDefaults.PillIndicator(
                                 currentTabPosition = tabPositions[selectedTabIndex],
                                 doesTabRowHaveFocus = doesTabRowHaveFocus,

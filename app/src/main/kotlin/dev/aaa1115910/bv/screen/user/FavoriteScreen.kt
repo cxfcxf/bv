@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun FavoriteScreen(
@@ -120,7 +121,7 @@ fun FavoriteScreen(
             selectedTabIndex = currentTabIndex,
             separator = { Spacer(modifier = Modifier.width(12.dp)) },
             indicator = { tabPositions, doesTabRowHaveFocus ->
-                val pink = Color(0xFFFF69B4)
+                val pink = LocalFocusColor.current
                 TabRowDefaults.PillIndicator(
                     currentTabPosition = tabPositions[currentTabIndex],
                     doesTabRowHaveFocus = doesTabRowHaveFocus,

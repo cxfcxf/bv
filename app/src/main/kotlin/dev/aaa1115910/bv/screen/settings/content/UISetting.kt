@@ -50,6 +50,7 @@ import dev.aaa1115910.bv.component.settings.SettingSwitchListItem
 import dev.aaa1115910.bv.screen.main.LeftNaviItem
 import dev.aaa1115910.bv.screen.settings.SettingsMenuNavItem
 import dev.aaa1115910.bv.ui.theme.BVTheme
+import dev.aaa1115910.bv.entity.FocusColor
 import dev.aaa1115910.bv.util.Prefs
 import dev.aaa1115910.bv.util.requestFocus
 import kotlin.math.roundToInt
@@ -69,6 +70,8 @@ fun UISetting(
     var showPersistentSeek by remember { mutableStateOf(Prefs.showPersistentSeek) }
 
     val density by Prefs.densityFlow.collectAsState(context.resources.displayMetrics.widthPixels / 960f)
+    var showFocusColorDialog by remember { mutableStateOf(false) }
+    var selectedFocusColor by remember { mutableStateOf(Prefs.focusColor) }
     var selectedLeftNavItem by remember { mutableStateOf(Prefs.homeLeftNaviItem) }
     var selectedFirstHomeTopNavItem by remember { mutableStateOf(Prefs.firstHomeTopNavItem) }
     var selectedFirstPersonalTopNavItem by remember { mutableStateOf(Prefs.firstPersonalTopNavItem) }
@@ -139,6 +142,13 @@ fun UISetting(
                         onClick = { showDensityDialog = true }
                     )
                 }
+                item {
+                    SettingListItem(
+                        title = stringResource(R.string.settings_ui_focus_color_title),
+                        supportText = stringResource(R.string.settings_ui_focus_color_text),
+                        onClick = { showFocusColorDialog = true }
+                    )
+                }
             }
         }
     }
@@ -149,6 +159,19 @@ fun UISetting(
         density = density,
         onDensityChange = { Prefs.density = it }
     )
+
+    if (showFocusColorDialog) {
+        OptionDialog(
+            options = FocusColor.entries.toTypedArray(),
+            selectedOption = selectedFocusColor,
+            onDismiss = { showFocusColorDialog = false },
+            onSelect = {
+                Prefs.focusColor = it
+                selectedFocusColor = it
+            },
+            getDisplayName = { it.getDisplayName(context) }
+        )
+    }
 
     if (showStartupPageDialog) {
         OptionDialog(

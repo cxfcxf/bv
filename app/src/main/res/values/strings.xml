@@ -159,6 +159,12 @@
     <string name="resolution_1080p_plus">1080P+ 高码率</string>
     <string name="resolution_1080p_plus_short">1080P+</string>
     <string name="resolution_1080p_short">1080P</string>
+    <string name="focus_color_pink">粉色</string>
+    <string name="focus_color_white">白色</string>
+    <string name="focus_color_amber">琥珀色</string>
+    <string name="focus_color_cyan">青色</string>
+    <string name="settings_ui_focus_color_title">焦点颜色</string>
+    <string name="settings_ui_focus_color_text">选中控件时的高亮颜色</string>
     <string name="resolution_auto">自动</string>
     <string name="resolution_auto_short">自动</string>
     <string name="resolution_240p">240P 极速</string>

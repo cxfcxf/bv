@@ -18,6 +18,7 @@ import dev.aaa1115910.bv.component.PersonalTopNavItem
 import dev.aaa1115910.bv.component.controllers.DanmakuType
 import dev.aaa1115910.bv.component.controllers.playermenu.PlaySpeedItem
 import dev.aaa1115910.bv.entity.Audio
+import dev.aaa1115910.bv.entity.FocusColor
 import dev.aaa1115910.bv.entity.CdnType
 import dev.aaa1115910.bv.entity.PlayerType
 import dev.aaa1115910.bv.entity.Resolution
@@ -226,6 +227,14 @@ object Prefs {
     )
     val densityFlow = flowMap[PrefKeys.prefDensityKey]!!.asStateFlow() as StateFlow<Float>
 
+    var focusColor by pref(
+        PrefKeys.prefFocusColorKey,
+        FocusColor.Pink,
+        save = { it.code },
+        restore = { FocusColor.fromCode(it) }
+    )
+    val focusColorFlow = flowMap[PrefKeys.prefFocusColorKey]!!.asStateFlow() as StateFlow<Int>
+
     var homeLeftNaviItem by pref(
         PrefKeys.prefHomeLeftNavItem,
         LeftNaviItem.Home,
@@ -349,6 +358,7 @@ private object PrefKeys {
     val prefBuvid3Key = stringPreferencesKey("random_buvid3")
 
     // 网络 & API
+    val prefFocusColorKey = intPreferencesKey("focus_color")
     val prefApiTypeKey = intPreferencesKey("api_type")
     val prefEnableProxyKey = booleanPreferencesKey("enable_proxy")
     val prefProxyHttpServerKey = stringPreferencesKey("proxy_http_server")

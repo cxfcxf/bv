@@ -34,6 +34,7 @@ import dev.aaa1115910.biliapi.entity.pgc.PgcType
 import dev.aaa1115910.biliapi.entity.ugc.UgcTypeV2
 import dev.aaa1115910.bv.BVApp
 import dev.aaa1115910.bv.util.getDisplayName
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun TopNav(
@@ -58,7 +59,7 @@ fun TopNav(
             .padding(12.dp, verticalPadding),
         horizontalArrangement = Arrangement.Center
     ) {
-        val pink = Color(0xFFFF69B4)
+        val pink = LocalFocusColor.current
         TabRow(
             modifier = Modifier
                 .focusRestorer(focusRequester),
@@ -101,7 +102,7 @@ private fun TabRowScope.NavItemTab(
 ) {
     val context = LocalContext.current
 
-    val pink = Color(0xFFFF69B4)
+    val pink = LocalFocusColor.current
     Tab(
         modifier = modifier,
         selected = selected,

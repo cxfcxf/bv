@@ -35,6 +35,7 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import dev.aaa1115910.biliapi.entity.live.LiveRoom
 import dev.aaa1115910.bv.util.toWanString
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun LiveRoomCard(
@@ -43,7 +44,7 @@ fun LiveRoomCard(
     onClick: () -> Unit
 ) {
     var cardFocused by remember { mutableStateOf(false) }
-    val pinkBg = remember { Color(0xFFFF69B4).copy(alpha = 0.35f) }
+    val pinkBg = LocalFocusColor.current.copy(alpha = 0.35f)
     val shape = MaterialTheme.shapes.large
 
     Column(
@@ -82,7 +83,7 @@ fun LiveRoomCard(
                         .align(Alignment.TopStart)
                         .padding(6.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFFF69B4))
+                        .background(LocalFocusColor.current)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -141,7 +142,7 @@ fun LiveRoomCard(
                 text = room.areaName,
                 maxLines = 1,
                 fontSize = 12.sp,
-                color = Color(0xFFFF69B4).copy(alpha = 0.8f)
+                color = LocalFocusColor.current.copy(alpha = 0.8f)
             )
         }
     }

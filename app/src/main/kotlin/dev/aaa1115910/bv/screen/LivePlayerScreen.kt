@@ -50,6 +50,7 @@ import dev.aaa1115910.bv.player.BvVideoPlayer
 import dev.aaa1115910.bv.viewmodel.player.LivePlayerViewModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun LivePlayerScreen(
@@ -161,7 +162,7 @@ fun LivePlayerScreen(
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
-                    color = Color(0xFFFF69B4),
+                    color = LocalFocusColor.current,
                     strokeWidth = 2.dp
                 )
                 Text(

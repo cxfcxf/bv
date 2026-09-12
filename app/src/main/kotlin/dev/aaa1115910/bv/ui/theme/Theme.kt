@@ -26,6 +26,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 import dev.aaa1115910.bv.component.FpsMonitor
+import dev.aaa1115910.bv.entity.FocusColor
 import dev.aaa1115910.bv.util.Prefs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,11 +39,16 @@ fun BVTheme(
     val fontScale = LocalDensity.current.fontScale
     val view = LocalView.current
 
-    val pink = Color(0xFFFF69B4)
+    // 焦点色跟着设置走，用 flow 收，改完立刻生效而不用重启
+    val focusColor = if (view.isInEditMode) {
+        FocusColor.Pink
+    } else {
+        FocusColor.fromCode(Prefs.focusColorFlow.collectAsState(FocusColor.Pink.code).value)
+    }
     val colorSchemeTv = darkColorScheme(
-        border = pink,
-        inverseSurface = pink,
-        inverseOnSurface = Color.Black
+        border = focusColor.color,
+        inverseSurface = focusColor.color,
+        inverseOnSurface = focusColor.onColor
     )
     val colorSchemeCommon = androidx.compose.material3.darkColorScheme()
     val typographyTv =
@@ -77,6 +83,7 @@ fun BVTheme(
         ) {
             CompositionLocalProvider(
                 LocalRippleConfiguration provides null,
+                LocalFocusColor provides focusColor.color,
                 LocalDensity provides Density(density = density, fontScale = fontScale)
             ) {
                 androidx.compose.material3.Surface(color = Color.Transparent) {

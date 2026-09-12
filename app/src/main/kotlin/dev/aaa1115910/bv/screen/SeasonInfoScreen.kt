@@ -120,6 +120,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.getKoin
 import kotlin.math.ceil
+import dev.aaa1115910.bv.ui.theme.LocalFocusColor
 
 @Composable
 fun SeasonInfoScreen(
@@ -506,7 +507,7 @@ fun SeasonCover(
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
         border = CardDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(3.dp, Color(0xFFFF69B4)),
+                border = BorderStroke(3.dp, LocalFocusColor.current),
                 shape = MaterialTheme.shapes.large
             )
         )
@@ -772,8 +773,8 @@ fun SeasonEpisodesDialog(
                                 TabRowDefaults.PillIndicator(
                                     currentTabPosition = tabPositions[selectedTabIndex],
                                     doesTabRowHaveFocus = doesTabRowHaveFocus,
-                                    activeColor = Color(0xFFFF69B4),
-                                    inactiveColor = Color(0xFFFF69B4).copy(alpha = 0.4f)
+                                    activeColor = LocalFocusColor.current,
+                                    inactiveColor = LocalFocusColor.current.copy(alpha = 0.4f)
                                 )
                             }
                         ) {
@@ -1117,7 +1118,7 @@ private fun SeasonSelectorContent(
                             scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f),
                             border = CardDefaults.border(
                                 focusedBorder = Border(
-                                    border = BorderStroke(3.dp, Color(0xFFFF69B4)),
+                                    border = BorderStroke(3.dp, LocalFocusColor.current),
                                     shape = MaterialTheme.shapes.large
                                 )
                             ),
