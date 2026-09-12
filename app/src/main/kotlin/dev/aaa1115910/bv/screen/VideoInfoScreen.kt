@@ -203,16 +203,35 @@ fun VideoInfoScreen(
         val videoDetailState = uiState.videoDetailState ?: return
         val targetCid = cid ?: videoDetailState.cid
 
-        // 1. 更新播放列表
-        videoDetailViewModel.updateVideoList(
-            listOf(
+        // 1. 更新播放列表。合集优先取当前视频所在分区，其次是多 P，
+        //    都没有才退回单个视频 —— 否则播放器里的"选集"看不到同系列其他集
+        val seasonEpisodes = videoDetailState.ugcSeason?.sections
+            ?.firstOrNull { section -> section.episodes.any { it.cid == targetCid } }
+            ?.episodes
+            ?: videoDetailState.ugcSeason?.sections?.firstOrNull()?.episodes
+
+        val playlist = when {
+            !seasonEpisodes.isNullOrEmpty() -> seasonEpisodes.map {
+                VideoListItem(aid = it.aid, cid = it.cid, title = it.title)
+            }
+
+            videoDetailState.pages.size > 1 -> videoDetailState.pages.map {
+                VideoListItem(
+                    aid = videoDetailState.aid,
+                    cid = it.cid,
+                    title = it.title
+                )
+            }
+
+            else -> listOf(
                 VideoListItem(
                     aid = videoDetailState.aid,
                     cid = targetCid,
                     title = videoDetailState.title,
                 )
             )
-        )
+        }
+        videoDetailViewModel.updateVideoList(playlist)
 
         // 2. 解析分集标题
         val partTitle = videoDetailState.pages.find { it.cid == targetCid }?.title

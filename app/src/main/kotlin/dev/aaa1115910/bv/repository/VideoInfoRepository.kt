@@ -21,18 +21,33 @@ class VideoInfoRepository(private val videoDetailRepository: VideoDetailReposito
     val videoList = _videoList.asStateFlow()
     val videoDetailState = _videoDetailState.asStateFlow()
 
-    suspend fun updateUgcPages(preferApiType: ApiType = ApiType.Web) {
+    /**
+     * 补齐合集内视频的分P。只补当前这集和下一集：播放下一集最多用到这两条，
+     * 而合集动辄几十集，逐个拉取既慢又容易触发风控。
+     */
+    suspend fun updateUgcPages(currentAid: Long, preferApiType: ApiType = ApiType.Web) {
+        val snapshot = _videoList.value
+        val currentIndex = snapshot.indexOfFirst { it.aid == currentAid }
+        if (currentIndex == -1) return
+
+        val targetAids = listOfNotNull(
+            snapshot.getOrNull(currentIndex),
+            snapshot.getOrNull(currentIndex + 1)
+        ).filter { it.ugcPages == null }
+            .map { it.aid }
+            .toSet()
+        if (targetAids.isEmpty()) return
+
+        val fetched = targetAids.associateWith { aid ->
+            runCatching {
+                videoDetailRepository.getUgcPages(aid = aid, preferApiType = preferApiType)
+            }.getOrDefault(emptyList())
+        }
+
         _videoList.update { oldList ->
             oldList.map { item ->
-                val pages =
-                    videoDetailRepository.getUgcPages(aid = item.aid, preferApiType = preferApiType)
-                if (pages.size > 1) {
-                    item.copy(
-                        ugcPages = pages,
-                    )
-                } else {
-                    item
-                }
+                val pages = fetched[item.aid]
+                if (pages != null && pages.size > 1) item.copy(ugcPages = pages) else item
             }
         }
     }

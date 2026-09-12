@@ -1125,7 +1125,10 @@ class VideoPlayerV3ViewModel(
 
     // 加载合集内的分P
     private suspend fun updateVideoPages() {
-        videoInfoRepository.updateUgcPages(Prefs.apiType)
+        videoInfoRepository.updateUgcPages(
+            currentAid = _uiState.value.aid,
+            preferApiType = Prefs.apiType
+        )
     }
 
     private suspend fun loadDanmaku(cid: Long) {
