@@ -8,10 +8,20 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.common.Format
+import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.dash.manifest.AdaptationSet
+import androidx.media3.exoplayer.dash.manifest.BaseUrl
+import androidx.media3.exoplayer.dash.manifest.DashManifest
+import androidx.media3.exoplayer.dash.manifest.Period
+import androidx.media3.exoplayer.dash.manifest.RangedUri
+import androidx.media3.exoplayer.dash.manifest.Representation
+import androidx.media3.exoplayer.dash.manifest.SegmentBase
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
@@ -19,6 +29,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import dev.aaa1115910.bv.player.AbstractVideoPlayer
+import dev.aaa1115910.bv.player.DashTrack
 import dev.aaa1115910.bv.player.OkHttpUtil
 import dev.aaa1115910.bv.player.VideoPlayerOptions
 import dev.aaa1115910.bv.player.formatMinSec
@@ -137,6 +148,79 @@ class ExoMediaPlayer(
             ProgressiveMediaSource.Factory(dataSourceFactory)
                 .createMediaSource(MediaItem.fromUri(url))
         }
+    }
+
+    @OptIn(UnstableApi::class)
+    override fun playDash(video: DashTrack, audio: DashTrack?, durationMs: Long) {
+        val adaptationSets = buildList {
+            add(video.toAdaptationSet(id = 0, trackType = C.TRACK_TYPE_VIDEO))
+            audio?.let { add(it.toAdaptationSet(id = 1, trackType = C.TRACK_TYPE_AUDIO)) }
+        }
+        val manifest = DashManifest(
+            /* availabilityStartTimeMs = */ C.TIME_UNSET,
+            /* durationMs = */ durationMs,
+            /* minBufferTimeMs = */ C.TIME_UNSET,
+            /* dynamic = */ false,
+            /* minUpdatePeriodMs = */ C.TIME_UNSET,
+            /* timeShiftBufferDepthMs = */ C.TIME_UNSET,
+            /* suggestedPresentationDelayMs = */ C.TIME_UNSET,
+            /* publishTimeMs = */ C.TIME_UNSET,
+            /* programInformation = */ null,
+            /* utcTiming = */ null,
+            /* serviceDescription = */ null,
+            /* location = */ null,
+            /* periods = */ listOf(Period(null, 0, adaptationSets))
+        )
+        mMediaSource = DashMediaSource.Factory(dataSourceFactory).createMediaSource(manifest)
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun DashTrack.toAdaptationSet(id: Int, trackType: Int): AdaptationSet {
+        val containerMimeType =
+            if (trackType == C.TRACK_TYPE_VIDEO) MimeTypes.VIDEO_MP4 else MimeTypes.AUDIO_MP4
+        val format = Format.Builder()
+            .setId(id)
+            .setContainerMimeType(containerMimeType)
+            .setSampleMimeType(codecs?.let { MimeTypes.getMediaMimeType(it) })
+            .setCodecs(codecs)
+            .setAverageBitrate(bandwidth)
+            .setPeakBitrate(bandwidth)
+            .apply {
+                if (trackType == C.TRACK_TYPE_VIDEO) {
+                    setWidth(width)
+                    setHeight(height)
+                    if (frameRate > 0f) setFrameRate(frameRate)
+                }
+            }
+            .build()
+        val (initStart, initLength) = parseByteRange(initializationRange)
+        val (indexStart, indexLength) = parseByteRange(indexRange)
+        val segmentBase = SegmentBase.SingleSegmentBase(
+            /* initialization = */ RangedUri(null, initStart, initLength),
+            /* timescale = */ 1,
+            /* presentationTimeOffset = */ 0,
+            /* indexStart = */ indexStart,
+            /* indexLength = */ indexLength
+        )
+        val representation = Representation.newInstance(
+            /* revisionId = */ Representation.REVISION_ID_DEFAULT,
+            format,
+            urls.map { BaseUrl(it) },
+            segmentBase
+        )
+        return AdaptationSet(
+            id.toLong(), trackType, listOf(representation),
+            emptyList(), emptyList(), emptyList()
+        )
+    }
+
+    /** "1235-5678" -> start 1235, length 4444 */
+    private fun parseByteRange(range: String): Pair<Long, Long> {
+        val separator = range.indexOf('-')
+        require(separator > 0) { "Malformed byte range: $range" }
+        val start = range.substring(0, separator).toLong()
+        val end = range.substring(separator + 1).toLong()
+        return start to (end - start + 1)
     }
 
     @OptIn(UnstableApi::class)

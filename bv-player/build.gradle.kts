@@ -71,6 +71,7 @@ dependencies {
     implementation(androidx.media3.datasource.okhttp)
     implementation(androidx.media3.decoder)
     implementation(androidx.media3.exoplayer)
+    implementation(androidx.media3.exoplayer.dash)
     implementation(androidx.media3.exoplayer.hls)
     implementation(androidx.media3.ui)
     implementation(libs.material)

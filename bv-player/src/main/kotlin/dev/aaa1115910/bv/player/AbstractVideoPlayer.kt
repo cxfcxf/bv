@@ -19,6 +19,12 @@ abstract class AbstractVideoPlayer {
     /** 设置直播拉流地址（HLS 或 FLV） */
     open fun playLiveUrl(url: String) {}
 
+    /**
+     * 以 DASH 方式播放，按 byte range 分段请求。仅 Web 接口返回分段索引，
+     * 没有索引时仍需走 [playUrl]。
+     */
+    abstract fun playDash(video: DashTrack, audio: DashTrack?, durationMs: Long)
+
     /** 准备开始播放 */
     abstract fun prepare()
 

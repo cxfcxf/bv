@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.media3.datasource.HttpDataSource
+import dev.aaa1115910.bv.player.DashTrack
+import dev.aaa1115910.bv.util.DashSources
 import dev.aaa1115910.bv.util.PlaybackSources
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -383,7 +385,7 @@ class VideoPlayerV3ViewModel(
             if (mediaUrls != null) {
                 // 执行播放逻辑
                 activeSources = mediaUrls
-                player.playUrl(mediaUrls.videoUrl, mediaUrls.audioUrl)
+                player.setSources(mediaUrls)
                 player.prepare()
                 if (currentPosition > 0) {
                     player.seekTo(currentPosition)
@@ -919,9 +921,72 @@ class VideoPlayerV3ViewModel(
         // Keep the API-provided mirrors for each track. Proxy URLs must stay on
         // their configured route, so do not mix direct backups into proxy playback.
         val proxied = Prefs.enableProxy && state.proxyArea != ProxyArea.MainLand
+        val resolvedVideoUrls =
+            (listOf(videoUrl) + if (proxied) emptyList() else videoUrls.filterNotNull()).distinct()
+        val resolvedAudioUrls =
+            (listOfNotNull(audioUrl) + if (proxied) emptyList() else audioUrls).distinct()
         return PlaybackSources(
-            videoUrls = (listOf(videoUrl) + if (proxied) emptyList() else videoUrls.filterNotNull()).distinct(),
-            audioUrls = (listOfNotNull(audioUrl) + if (proxied) emptyList() else audioUrls).distinct()
+            videoUrls = resolvedVideoUrls,
+            audioUrls = resolvedAudioUrls,
+            // 代理播放必须保持在配置的线路上，不混入直连镜像，也就不走 DASH
+            dash = if (proxied) null else buildDashSources(
+                video = actualVideoItem,
+                audio = audioItem,
+                durationSeconds = currentPlayData.durationSeconds,
+                videoUrls = resolvedVideoUrls,
+                audioUrls = resolvedAudioUrls
+            )
+        )
+    }
+
+    /** DASH 有分段索引时按 byte range 请求，否则退回整条流式拉取。 */
+    private fun AbstractVideoPlayer.setSources(sources: PlaybackSources) {
+        val dash = sources.dash
+        if (dash != null) {
+            logger.info { "Play as DASH, duration=${dash.durationMs}ms" }
+            playDash(dash.video, dash.audio, dash.durationMs)
+        } else {
+            playUrl(sources.videoUrl, sources.audioUrl)
+        }
+    }
+
+    /**
+     * 只有 Web 接口返回 segmentBase。所有镜像地址都写进 manifest，播放器可自行
+     * 在其间故障转移，因此这条路径不再需要 [recoverSource]。
+     */
+    private fun buildDashSources(
+        video: dev.aaa1115910.biliapi.entity.DashVideo,
+        audio: dev.aaa1115910.biliapi.entity.DashAudio?,
+        durationSeconds: Int,
+        videoUrls: List<String>,
+        audioUrls: List<String>
+    ): DashSources? {
+        if (durationSeconds <= 0) return null
+        val videoSegment = video.segmentBase ?: return null
+        val audioSegment = audio?.segmentBase
+        // 音轨存在却没有索引时整体退回，避免只有一路走 DASH
+        if (audio != null && (audioSegment == null || audioUrls.isEmpty())) return null
+        return DashSources(
+            video = DashTrack(
+                urls = videoUrls,
+                codecs = video.codecs,
+                bandwidth = video.bandwidth,
+                initializationRange = videoSegment.initialization,
+                indexRange = videoSegment.indexRange,
+                width = video.width,
+                height = video.height,
+                frameRate = video.frameRate.toFloatOrNull() ?: 0f
+            ),
+            audio = audio?.let {
+                DashTrack(
+                    urls = audioUrls,
+                    codecs = it.codecs,
+                    bandwidth = it.bandwidth,
+                    initializationRange = audioSegment!!.initialization,
+                    indexRange = audioSegment.indexRange
+                )
+            },
+            durationMs = durationSeconds * 1000L
         )
     }
 
@@ -931,6 +996,8 @@ class VideoPlayerV3ViewModel(
             .filterIsInstance<HttpDataSource.HttpDataSourceException>()
             .firstOrNull() ?: return false
         val current = activeSources ?: return false
+        // DASH manifest 已包含全部镜像，播放器内部转移过了，这里不再重试
+        if (current.dash != null) return false
         val failedUrl = failure.dataSpec.uri.toString()
         logger.warn {
             "Media request failed: host=${failure.dataSpec.uri.host}, " +
@@ -969,7 +1036,7 @@ class VideoPlayerV3ViewModel(
 
         logger.info { "Execute playback -> Video: ${mediaUrls.videoUrl}, Audio: ${mediaUrls.audioUrl}" }
         activeSources = mediaUrls
-        player.playUrl(mediaUrls.videoUrl, mediaUrls.audioUrl)
+        player.setSources(mediaUrls)
         player.prepare()
         player.start()
     }

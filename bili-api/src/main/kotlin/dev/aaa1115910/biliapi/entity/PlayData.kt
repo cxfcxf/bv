@@ -16,6 +16,8 @@ data class PlayData(
     val flac: DashAudio? = null,
     val codec: Map<Int, List<String>> = emptyMap(),
     val needPay: Boolean = false,
+    /** 视频时长，构建 DASH manifest 时需要，仅 Web 接口有该值 */
+    val durationSeconds: Int = 0,
 ) {
     companion object {
         fun fromPlayViewUniteReply(playViewUniteReply: PlayViewUniteReply): PlayData {
@@ -231,7 +233,8 @@ data class PlayData(
                         height = it.height,
                         frameRate = it.frameRate,
                         backUrl = it.backupUrl,
-                        codecs = it.codecs
+                        codecs = it.codecs,
+                        segmentBase = it.segmentBase.toEntity()
                     )
                 }
             } else {
@@ -252,7 +255,9 @@ data class PlayData(
                     baseUrl = it.baseUrl,
                     bandwidth = it.bandwidth,
                     codecId = it.id,
-                    backUrl = it.backupUrl
+                    backUrl = it.backupUrl,
+                    segmentBase = it.segmentBase.toEntity(),
+                    codecs = it.codecs
                 )
             } ?: emptyList()
             val dolby = dolbyItem?.let {
@@ -260,7 +265,9 @@ data class PlayData(
                     baseUrl = it.baseUrl,
                     bandwidth = it.bandwidth,
                     codecId = it.id,
-                    backUrl = it.backupUrl
+                    backUrl = it.backupUrl,
+                    segmentBase = it.segmentBase.toEntity(),
+                    codecs = it.codecs
                 )
             }
             val flac = flacItem?.let {
@@ -268,7 +275,9 @@ data class PlayData(
                     baseUrl = it.baseUrl,
                     bandwidth = it.bandwidth,
                     codecId = it.id,
-                    backUrl = it.backupUrl
+                    backUrl = it.backupUrl,
+                    segmentBase = it.segmentBase.toEntity(),
+                    codecs = it.codecs
                 )
             }
 
@@ -278,7 +287,8 @@ data class PlayData(
                 dolby = dolby,
                 flac = flac,
                 codec = codec,
-                needPay = isPreview
+                needPay = isPreview,
+                durationSeconds = playUrlData.dash?.duration ?: 0
             )
         }
 
@@ -418,7 +428,8 @@ data class PlayData(
                     .distinct()
                     .filter { it != "none" }
             }.toMap(),
-            needPay = needPay || other.needPay
+            needPay = needPay || other.needPay,
+            durationSeconds = maxOf(durationSeconds, other.durationSeconds)
         )
     }
 }
@@ -443,7 +454,20 @@ data class DashVideo(
     val height: Int,
     val frameRate: String,
     val backUrl: List<String>,
-    val codecs: String? = null
+    val codecs: String? = null,
+    val segmentBase: DashSegmentBase? = null
+)
+
+/**
+ * DASH 分段索引，仅 Web 接口返回。有该值才能按 byte range 请求分段，
+ * 否则只能整条流式拉取。
+ *
+ * @param initialization 初始化段范围，如 "0-1234"
+ * @param indexRange sidx 索引范围，如 "1235-5678"
+ */
+data class DashSegmentBase(
+    val initialization: String,
+    val indexRange: String
 )
 
 /**
@@ -456,5 +480,11 @@ data class DashAudio(
     val baseUrl: String,
     val bandwidth: Int,
     val codecId: Int,
-    val backUrl: List<String>
+    val backUrl: List<String>,
+    val segmentBase: DashSegmentBase? = null,
+    /** 编码格式 仅 Web 接口有该值 */
+    val codecs: String? = null
 )
+
+private fun dev.aaa1115910.biliapi.http.entity.video.SegmentBase.toEntity() =
+    DashSegmentBase(initialization = initialization, indexRange = indexRange)
