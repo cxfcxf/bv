@@ -8,6 +8,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
@@ -70,9 +71,28 @@ class ExoMediaPlayer(
                 setMediaCodecSelector(MediaCodecSelector.DEFAULT)
             }
         }
+        // 默认只缓冲 50s。B 站 CDN 对单条长连接限速，缓冲一满播放器就停止读取，
+        // 连接随即被限到接近码率，之后缓冲始终贴着播放位置，稍有抖动就卡顿。
+        // 放宽到 120s 让播放器持续下载，同时按堆上限限制缓冲字节数，
+        // 避免高码率视频把堆撑爆（SHIELD 的 heapgrowthlimit 只有 192MB）。
+        val targetBufferBytes = minOf(
+            MAX_TARGET_BUFFER_BYTES,
+            Runtime.getRuntime().maxMemory() / 4
+        ).toInt()
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                BUFFER_MS,
+                BUFFER_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+            )
+            .setTargetBufferBytes(targetBufferBytes)
+            .build()
+
         mPlayer = ExoPlayer
             .Builder(context)
             .setRenderersFactory(renderersFactory)
+            .setLoadControl(loadControl)
             .setSeekForwardIncrementMs(1000 * 10)
             .setSeekBackIncrementMs(1000 * 5)
             // 默认 500ms 在电视盒子上不够硬件解码器完成释放，超时会强杀播放线程，
@@ -227,5 +247,11 @@ class ExoMediaPlayer(
 
     override fun onPlayerError(error: PlaybackException) {
         mPlayerEventListener?.onError(error)
+    }
+
+    companion object {
+        private const val BUFFER_MS = 120_000
+        private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5_000
+        private const val MAX_TARGET_BUFFER_BYTES = 64L * 1024 * 1024
     }
 }
