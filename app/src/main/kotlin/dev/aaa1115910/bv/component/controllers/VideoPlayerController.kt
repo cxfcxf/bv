@@ -277,7 +277,9 @@ fun VideoPlayerController(
                 }
 
                 Key.DirectionUp -> {
-                    showListController = true
+                    // 上下都唤出播放控件；分P/选集改由控件里的按钮进入，
+                    // 免得上键唤出一个和当前视频未必相关的列表
+                    showInfoSeekController = true
                     return true
                 }
 
@@ -414,7 +416,12 @@ fun VideoPlayerController(
                 )
             },
             onToggleLoop = onToggleLoop,
-            onGoToUpPage = onGoToUpPage
+            onGoToUpPage = onGoToUpPage,
+            hasVideoList = uiState.availableVideoList.size > 1,
+            onShowVideoList = {
+                showInfoSeekController = false
+                showListController = true
+            }
         )
 
         VideoListController(

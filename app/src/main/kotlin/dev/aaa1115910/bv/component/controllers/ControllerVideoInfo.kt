@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -83,7 +84,9 @@ fun ControllerVideoInfo(
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
-    onGoToUpPage: () -> Unit
+    onGoToUpPage: () -> Unit,
+    hasVideoList: Boolean = false,
+    onShowVideoList: () -> Unit = {}
 ) {
     Box(
         modifier = modifier.fillMaxSize()
@@ -129,7 +132,9 @@ fun ControllerVideoInfo(
                 onShowRelatedVideos = onShowRelatedVideos,
                 onGoToVideoInfo = onGoToVideoInfo,
                 onToggleLoop = onToggleLoop,
-                onGoToUpPage = onGoToUpPage
+                onGoToUpPage = onGoToUpPage,
+                hasVideoList = hasVideoList,
+                onShowVideoList = onShowVideoList
             )
         }
     }
@@ -209,7 +214,9 @@ fun ControllerVideoInfoBottom(
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
-    onGoToUpPage: () -> Unit
+    onGoToUpPage: () -> Unit,
+    hasVideoList: Boolean = false,
+    onShowVideoList: () -> Unit = {}
 ) {
     val seekFocusRequester = remember { FocusRequester() }
     val buttonsFocusRequester = remember { FocusRequester() }
@@ -226,18 +233,31 @@ fun ControllerVideoInfoBottom(
             }
         }
     }
+    val timeStyle = MaterialTheme.typography.titleMedium.copy(
+        fontWeight = FontWeight.Medium,
+        shadow = Shadow(color = Color.Black.copy(alpha = 0.6f), blurRadius = 6f)
+    )
+
     Column(
         modifier = modifier
-            .clip(
-                MaterialTheme.shapes.large
-                    .copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp))
-            ),
+            .fillMaxWidth()
+            // 控件直接压在画面上，没有背景时亮场景下几乎看不清，
+            // 这里用一层自下而上的渐变兜底
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.55f),
+                        Color.Black.copy(alpha = 0.92f)
+                    )
+                )
+            )
+            .padding(start = 48.dp, end = 48.dp, top = 56.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.Bottom
     ) {
         if (isSeeking && videoShot != null) {
             VideoShot(
-                modifier = Modifier
-                    .padding(horizontal = 48.dp),
+                modifier = Modifier.padding(bottom = 12.dp),
                 videoShot = videoShot,
                 imageCache = videoShotCache,
                 position = goTime,
@@ -245,28 +265,15 @@ fun ControllerVideoInfoBottom(
                 coercedOffset = (-24).dp
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                modifier = Modifier.padding(bottom = 2.dp, start = 24.dp),
-                text = "${if (isSeeking) goTime.formatHourMinSec() else seekerState.currentTime.formatHourMinSec()} / ${seekerState.totalDuration.formatHourMinSec()}",
-                color = Color.White,
-                style = TextStyle(
-                    shadow = Shadow(color = Color.Black, blurRadius = 1f),
-                ),
-            )
-        }
+
         Row(
             modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = if (isSeekFocused) 1f else 0f),
-                    shape = RoundedCornerShape(8.dp)
-                )
-                .focusable()
-                .focusRequester(seekFocusRequester)
+                .fillMaxWidth()
+                // onFocusChanged 必须排在 focusable 之前，否则收不到焦点变化，
+                // 进度条就永远显示成未聚焦的样子
+                .onFocusChanged {
+                    isSeekFocused = it.isFocused
+                }
                 .onKeyEvent {
                     when (it.key) {
                         Key.DirectionCenter, Key.Enter, Key.Spacebar -> {
@@ -299,28 +306,46 @@ fun ControllerVideoInfoBottom(
                     }
                     return@onKeyEvent false
                 }
-                .onFocusChanged {
-                    isSeekFocused = it.isFocused
-                },
+                .focusRequester(seekFocusRequester)
+                .focusable(),
         ) {
             VideoProgressSeek(
-                modifier = Modifier
-                    .focusable()
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 duration = seekerState.totalDuration,
                 position = if (isSeeking) goTime else seekerState.currentTime,
                 bufferedPercentage = seekerState.bufferedPercentage,
-                isPersistentSeek = false
+                isPersistentSeek = false,
+                focused = isSeekFocused
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = (if (isSeeking) goTime else seekerState.currentTime).formatHourMinSec(),
+                color = if (isSeeking) MaterialTheme.colorScheme.primary else Color.White,
+                style = timeStyle
+            )
+            Text(
+                text = seekerState.totalDuration.formatHourMinSec(),
+                color = Color.White.copy(alpha = 0.7f),
+                style = timeStyle
             )
         }
 
         val icons = listOfNotNull(
             (R.drawable.play_pause_24px to "播放/暂停") to onPlayPause,
-            ((if (danmakuEnabled) (R.drawable.danmaku_on_24px) else (R.drawable.danmaku_off_24px)) to "弹幕开关") to onDanmakuSwitchChange,
-            (R.drawable.settings_24px to "打开设置") to onShowSettings,
+            ((if (danmakuEnabled) (R.drawable.danmaku_on_24px) else (R.drawable.danmaku_off_24px)) to "弹幕") to onDanmakuSwitchChange,
+            (R.drawable.settings_24px to "设置") to onShowSettings,
+            // 只有多 P / 合集才给入口，单个视频不显示
+            if (hasVideoList) (R.drawable.video_list_24px to "选集") to onShowVideoList else null,
             if (!fromSeason) (R.drawable.info_24px to "视频信息") to onGoToVideoInfo else null,
-            if (!fromSeason) (R.drawable.contact_page_24px to "up主页") to onGoToUpPage else null,
-            if (!fromSeason)(R.drawable.related_videos_24px to "相关视频") to onShowRelatedVideos else null,
+            if (!fromSeason) (R.drawable.contact_page_24px to "UP主页") to onGoToUpPage else null,
+            if (!fromSeason) (R.drawable.related_videos_24px to "相关视频") to onShowRelatedVideos else null,
             ((if (isLooping) (R.drawable.repeat_one_on_24px) else (R.drawable.repeat_one_24px)) to "循环播放") to onToggleLoop,
         )
 
@@ -336,26 +361,48 @@ fun ControllerVideoInfoBottom(
                     }
                     return@onKeyEvent false
                 }
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
+                .padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             icons.forEach { (icon, function) ->
+                var buttonFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = function,
-                    shape = ClickableSurfaceDefaults.shape(
-                        shape = MaterialTheme.shapes.small,
-                    ),
-                ) {
-                    Icon(
-                        painter = painterResource(id = icon.first),
-                        contentDescription = icon.second,
-                        modifier = Modifier.padding(5.dp)
+                    modifier = Modifier.onFocusChanged { buttonFocused = it.isFocused },
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(50)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White.copy(alpha = 0.14f),
+                        contentColor = Color.White,
+                        focusedContainerColor = Color.White,
+                        focusedContentColor = Color.Black
                     )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = icon.first),
+                            contentDescription = icon.second,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        // 只有聚焦的按钮显示文字，其余保持图标，避免一整排字
+                        AnimatedVisibility(visible = buttonFocused) {
+                            Text(
+                                text = icon.second,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun Clock(

@@ -1,20 +1,22 @@
 package dev.aaa1115910.bv.component.controllers
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.SliderColors
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.MaterialTheme
 import dev.aaa1115910.bv.ui.theme.BVTheme
 
 @Composable
@@ -23,44 +25,82 @@ fun VideoProgressSeek(
     duration: Long,
     position: Long,
     bufferedPercentage: Int,
-    isPersistentSeek: Boolean
+    isPersistentSeek: Boolean,
+    focused: Boolean = false
 ) {
-    val colors: SliderColors = SliderDefaults.colors()
-    val trackWidthDp = if (isPersistentSeek) 2.dp else 8.dp
+    val activeColor = MaterialTheme.colorScheme.primary
+    // 获得焦点时轨道变粗并长出滑块，让"现在能拖动"这件事一眼可见
+    val trackHeight by animateDpAsState(
+        targetValue = when {
+            isPersistentSeek -> 2.dp
+            focused -> 8.dp
+            else -> 5.dp
+        },
+        label = "SeekTrackHeight"
+    )
+    val thumbRadius by animateDpAsState(
+        targetValue = if (!isPersistentSeek && focused) 11.dp else 0.dp,
+        label = "SeekThumbRadius"
+    )
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(trackWidthDp)
-            .clip(RoundedCornerShape(50))
+            .height(if (isPersistentSeek) 2.dp else 24.dp)
     ) {
-        val trackWidthPx = trackWidthDp.toPx()
+        val track = trackHeight.toPx()
+        val thumb = thumbRadius.toPx()
+        // 两端留出滑块半径，否则进度为 0 或 100% 时滑块会被裁掉
+        val inset = maxOf(thumb, track / 2)
+        val startX = inset
+        val span = (size.width - inset * 2).coerceAtLeast(0f)
+        val progress = if (duration > 0) {
+            (position / duration.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        val buffered = (bufferedPercentage / 100f).coerceIn(0f, 1f)
 
         drawLine(
-            color = colors.inactiveTrackColor,
-            start = Offset(0f, center.y),
-            end = Offset(size.width, center.y),
-            strokeWidth = trackWidthPx,
+            color = Color.White.copy(alpha = 0.25f),
+            start = Offset(startX, center.y),
+            end = Offset(startX + span, center.y),
+            strokeWidth = track,
             cap = StrokeCap.Round
         )
-        if (!isPersistentSeek) {
+        if (!isPersistentSeek && buffered > 0f) {
             drawLine(
-                color = colors.disabledActiveTrackColor,
-                start = Offset(trackWidthPx / 2, center.y),
-                end = Offset(size.width * bufferedPercentage / 100, center.y),
-                strokeWidth = trackWidthPx,
+                color = Color.White.copy(alpha = 0.45f),
+                start = Offset(startX, center.y),
+                end = Offset(startX + span * buffered, center.y),
+                strokeWidth = track,
                 cap = StrokeCap.Round
             )
         }
-        drawLine(
-            color = colors.activeTrackColor,
-            start = Offset(trackWidthPx / 2, center.y),
-            end = Offset(size.width * (position / duration.toFloat()), center.y),
-            strokeWidth = trackWidthPx,
-            cap = StrokeCap.Round
-        )
+        if (progress > 0f) {
+            drawLine(
+                color = activeColor,
+                start = Offset(startX, center.y),
+                end = Offset(startX + span * progress, center.y),
+                strokeWidth = track,
+                cap = StrokeCap.Round
+            )
+        }
+        if (thumb > 0f) {
+            val thumbX = startX + span * progress
+            // 深色描边保证滑块在亮画面上也看得清
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.35f),
+                radius = thumb + 2.dp.toPx(),
+                center = Offset(thumbX, center.y)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = thumb,
+                center = Offset(thumbX, center.y)
+            )
+        }
     }
-
 }
 
 
