@@ -215,13 +215,16 @@ fun VideoInfoScreen(
                 VideoListItem(aid = it.aid, cid = it.cid, title = it.title)
             }
 
-            videoDetailState.pages.size > 1 -> videoDetailState.pages.map {
+            // 分P 属于同一个 aid，必须做成一条带 ugcPages 的记录。
+            // 拆成多条会让按 aid 定位当前位置的逻辑永远命中第一条。
+            videoDetailState.pages.size > 1 -> listOf(
                 VideoListItem(
                     aid = videoDetailState.aid,
-                    cid = it.cid,
-                    title = it.title
+                    cid = targetCid,
+                    title = videoDetailState.title,
+                    ugcPages = videoDetailState.pages
                 )
-            }
+            )
 
             else -> listOf(
                 VideoListItem(

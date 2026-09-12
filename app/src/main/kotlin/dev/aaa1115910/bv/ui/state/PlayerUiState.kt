@@ -13,6 +13,7 @@ import dev.aaa1115910.bv.entity.Audio
 import dev.aaa1115910.bv.entity.VideoAspectRatio
 import dev.aaa1115910.bv.entity.VideoCodec
 import dev.aaa1115910.bv.entity.VideoListItem
+import dev.aaa1115910.biliapi.entity.video.VideoPage
 import dev.aaa1115910.bv.entity.carddata.VideoCardData
 import dev.aaa1115910.bv.entity.proxy.ProxyArea
 
@@ -110,4 +111,41 @@ sealed class PlayerState {
     data object Paused: PlayerState()
     data object Ended: PlayerState()
     data class Error(val message: String): PlayerState()
+}
+
+/** 相邻的一集：先在当前视频的分P内找，找不到再跳到列表里相邻的视频 */
+sealed interface AdjacentEpisode {
+    val title: String
+
+    data class Page(val parent: VideoListItem, val page: VideoPage) : AdjacentEpisode {
+        override val title: String = page.title
+    }
+
+    data class Video(val video: VideoListItem) : AdjacentEpisode {
+        override val title: String = video.title
+    }
+}
+
+/**
+ * 上一集/下一集的目标。分P 和合集是嵌套的：先走完当前视频的分P，
+ * 再跳到合集里相邻的视频。自动连播和控件上的按钮共用这套规则，
+ * 免得两边判断不一致。
+ *
+ * @param forward true 取下一集，false 取上一集
+ */
+fun PlayerUiState.adjacentEpisode(forward: Boolean): AdjacentEpisode? {
+    val step = if (forward) 1 else -1
+    val index = availableVideoList.indexOfFirst { it.aid == aid }
+    val currentItem = availableVideoList.getOrNull(index)
+
+    val pages = currentItem?.ugcPages
+    if (currentItem != null && !pages.isNullOrEmpty()) {
+        val pageIndex = pages.indexOfFirst { it.cid == cid }
+        val targetPage = if (pageIndex == -1) null else pages.getOrNull(pageIndex + step)
+        if (targetPage != null) return AdjacentEpisode.Page(currentItem, targetPage)
+    }
+
+    if (index == -1) return null
+    val neighbour = availableVideoList.getOrNull(index + step) ?: return null
+    return AdjacentEpisode.Video(neighbour)
 }

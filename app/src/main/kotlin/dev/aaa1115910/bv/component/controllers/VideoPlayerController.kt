@@ -38,6 +38,7 @@ import dev.aaa1115910.bv.entity.carddata.VideoCardData
 import dev.aaa1115910.bv.entity.proxy.ProxyArea
 import dev.aaa1115910.bv.ui.state.PlayerState
 import dev.aaa1115910.bv.ui.state.PlayerUiState
+import dev.aaa1115910.bv.ui.state.adjacentEpisode
 import dev.aaa1115910.bv.ui.state.SeekerState
 import dev.aaa1115910.bv.util.VideoShotImageCache
 import dev.aaa1115910.bv.util.toast
@@ -73,6 +74,7 @@ fun VideoPlayerController(
     onBackToStart: () -> Unit,
     onCancelSkipToNextEp: () -> Unit,
     onPlayNewVideo: (VideoListItem) -> Unit,
+    onPlayAdjacentEpisode: (Boolean) -> Unit,
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
 
@@ -417,7 +419,13 @@ fun VideoPlayerController(
             },
             onToggleLoop = onToggleLoop,
             onGoToUpPage = onGoToUpPage,
-            hasVideoList = uiState.availableVideoList.size > 1,
+            // 单条记录也可能带着多个分P，这时同样要给选集入口
+            hasVideoList = uiState.availableVideoList.size > 1 ||
+                (uiState.availableVideoList.firstOrNull()?.ugcPages?.size ?: 0) > 1,
+            hasPreviousEpisode = uiState.adjacentEpisode(forward = false) != null,
+            hasNextEpisode = uiState.adjacentEpisode(forward = true) != null,
+            onPlayPreviousEpisode = { onPlayAdjacentEpisode(false) },
+            onPlayNextEpisode = { onPlayAdjacentEpisode(true) },
             onShowVideoList = {
                 showInfoSeekController = false
                 showListController = true

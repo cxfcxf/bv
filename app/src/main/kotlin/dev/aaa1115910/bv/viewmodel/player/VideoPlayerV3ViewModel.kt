@@ -48,7 +48,9 @@ import dev.aaa1115910.bv.ui.effect.PlayerUiEffect
 import dev.aaa1115910.bv.ui.state.DanmakuState
 import dev.aaa1115910.bv.ui.state.MediaProfileState
 import dev.aaa1115910.bv.ui.state.PlayerState
+import dev.aaa1115910.bv.ui.state.AdjacentEpisode
 import dev.aaa1115910.bv.ui.state.PlayerUiState
+import dev.aaa1115910.bv.ui.state.adjacentEpisode
 import dev.aaa1115910.bv.ui.state.SeekerState
 import dev.aaa1115910.bv.ui.state.SubtitleState
 import dev.aaa1115910.bv.util.Prefs
@@ -496,33 +498,9 @@ class VideoPlayerV3ViewModel(
             }
         }
 
-        val currentState = _uiState.value
-        val videoList = currentState.availableVideoList
-        val currentCid = currentState.cid
+        // 与控件上的上一集/下一集共用同一套规则：先走分P，再跳相邻视频
+        val nextTarget = _uiState.value.adjacentEpisode(forward = true)?.toPlayTarget()
 
-        // 1. 查找当前视频在列表中的位置
-        val videoListIndex = videoList.indexOfFirst { it.aid == currentState.aid }
-        val currentVideoItem = videoList.getOrNull(videoListIndex)
-
-        // 2. 预计算下一个播放项 (NextTarget)
-        var nextTarget: NextPlayTarget? = null
-
-        // 逻辑 A: 检查是否有下一个分 P (UGC Page)
-        if (currentVideoItem?.ugcPages?.isNotEmpty() == true) {
-            val currentInnerIndex = currentVideoItem.ugcPages.indexOfFirst { it.cid == currentCid }
-            if (currentInnerIndex != -1 && currentInnerIndex + 1 < currentVideoItem.ugcPages.size) {
-                val nextPage = currentVideoItem.ugcPages[currentInnerIndex + 1]
-                nextTarget = NextPlayTarget.UgcPage(currentVideoItem, nextPage)
-            }
-        }
-
-        // 逻辑 B: 如果没有分 P，检查是否有下一个视频
-        if (nextTarget == null && videoListIndex + 1 < videoList.size) {
-            val nextVideo = videoList[videoListIndex + 1]
-            nextTarget = NextPlayTarget.VideoItem(nextVideo)
-        }
-
-        // 3. 根据查找结果执行操作
         if (nextTarget != null) {
             startNextEpisodeCountdown(nextTarget)
         } else {
@@ -1410,6 +1388,18 @@ class VideoPlayerV3ViewModel(
                 it.copy(showPreviewTip = false)
             }
         }
+    }
+
+    private fun AdjacentEpisode.toPlayTarget(): NextPlayTarget = when (this) {
+        is AdjacentEpisode.Page -> NextPlayTarget.UgcPage(parent, page)
+        is AdjacentEpisode.Video -> NextPlayTarget.VideoItem(video)
+    }
+
+    /** 控件上的上一集/下一集，立即切换，不走倒计时 */
+    fun playAdjacentEpisode(forward: Boolean) {
+        val target = _uiState.value.adjacentEpisode(forward) ?: return
+        logger.info { "Jump to ${if (forward) "next" else "previous"} episode: ${target.title}" }
+        playNextTarget(target.toPlayTarget())
     }
 
     private fun playNextTarget(target: NextPlayTarget) {

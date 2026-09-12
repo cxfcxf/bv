@@ -86,7 +86,11 @@ fun ControllerVideoInfo(
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
     hasVideoList: Boolean = false,
-    onShowVideoList: () -> Unit = {}
+    onShowVideoList: () -> Unit = {},
+    hasPreviousEpisode: Boolean = false,
+    hasNextEpisode: Boolean = false,
+    onPlayPreviousEpisode: () -> Unit = {},
+    onPlayNextEpisode: () -> Unit = {}
 ) {
     Box(
         modifier = modifier.fillMaxSize()
@@ -134,7 +138,11 @@ fun ControllerVideoInfo(
                 onToggleLoop = onToggleLoop,
                 onGoToUpPage = onGoToUpPage,
                 hasVideoList = hasVideoList,
-                onShowVideoList = onShowVideoList
+                onShowVideoList = onShowVideoList,
+                hasPreviousEpisode = hasPreviousEpisode,
+                hasNextEpisode = hasNextEpisode,
+                onPlayPreviousEpisode = onPlayPreviousEpisode,
+                onPlayNextEpisode = onPlayNextEpisode
             )
         }
     }
@@ -216,7 +224,11 @@ fun ControllerVideoInfoBottom(
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
     hasVideoList: Boolean = false,
-    onShowVideoList: () -> Unit = {}
+    onShowVideoList: () -> Unit = {},
+    hasPreviousEpisode: Boolean = false,
+    hasNextEpisode: Boolean = false,
+    onPlayPreviousEpisode: () -> Unit = {},
+    onPlayNextEpisode: () -> Unit = {}
 ) {
     val seekFocusRequester = remember { FocusRequester() }
     val buttonsFocusRequester = remember { FocusRequester() }
@@ -338,7 +350,10 @@ fun ControllerVideoInfoBottom(
         }
 
         val icons = listOfNotNull(
+            // 上一集/下一集：先走完当前视频的分P，再跳合集里相邻的视频
+            if (hasPreviousEpisode) (R.drawable.skip_previous_24px to "上一集") to onPlayPreviousEpisode else null,
             (R.drawable.play_pause_24px to "播放/暂停") to onPlayPause,
+            if (hasNextEpisode) (R.drawable.skip_next_24px to "下一集") to onPlayNextEpisode else null,
             ((if (danmakuEnabled) (R.drawable.danmaku_on_24px) else (R.drawable.danmaku_off_24px)) to "弹幕") to onDanmakuSwitchChange,
             (R.drawable.settings_24px to "设置") to onShowSettings,
             // 只有多 P / 合集才给入口，单个视频不显示
@@ -374,8 +389,9 @@ fun ControllerVideoInfoBottom(
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = Color.White.copy(alpha = 0.14f),
                         contentColor = Color.White,
-                        focusedContainerColor = Color.White,
-                        focusedContentColor = Color.Black
+                        // 跟随全局焦点色（主题里的粉色），别在播放器里另搞一套
+                        focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                        focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface
                     )
                 ) {
                     Row(

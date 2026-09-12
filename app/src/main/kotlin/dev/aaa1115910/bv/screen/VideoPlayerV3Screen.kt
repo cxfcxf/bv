@@ -167,6 +167,7 @@ fun VideoPlayerV3Screen(
             playerViewModel.seekToTime(time)
         },
         onBackToStart = { playerViewModel.backToStart() },
+        onPlayAdjacentEpisode = { forward -> playerViewModel.playAdjacentEpisode(forward) },
         onPlayNewVideo = {
             playerViewModel.trySendHeartbeat()
             playerViewModel.playNewVideo(it)

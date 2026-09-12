@@ -29,6 +29,8 @@ fun VideoProgressSeek(
     focused: Boolean = false
 ) {
     val activeColor = MaterialTheme.colorScheme.primary
+    // 滑块是焦点指示，用全局焦点色保持一致
+    val thumbColor = MaterialTheme.colorScheme.inverseSurface
     // 获得焦点时轨道变粗并长出滑块，让"现在能拖动"这件事一眼可见
     val trackHeight by animateDpAsState(
         targetValue = when {
@@ -95,7 +97,7 @@ fun VideoProgressSeek(
                 center = Offset(thumbX, center.y)
             )
             drawCircle(
-                color = Color.White,
+                color = thumbColor,
                 radius = thumb,
                 center = Offset(thumbX, center.y)
             )
