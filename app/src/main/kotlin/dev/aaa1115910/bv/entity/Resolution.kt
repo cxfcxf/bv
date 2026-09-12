@@ -4,6 +4,8 @@ import android.content.Context
 import dev.aaa1115910.bv.R
 
 enum class Resolution(val code: Int, private val strResLong: Int, private val strResShort: Int) {
+    /** 自适应码率，按网速自动切换清晰度。code 0 不与任何 B 站清晰度冲突 */
+    RAuto(0, R.string.resolution_auto, R.string.resolution_auto_short),
     R240P(6, R.string.resolution_240p, R.string.resolution_240p_short),
     R360P(16, R.string.resolution_360p, R.string.resolution_360p_short),
     R480P(32, R.string.resolution_480p, R.string.resolution_480p_short),

@@ -22,8 +22,11 @@ abstract class AbstractVideoPlayer {
     /**
      * 以 DASH 方式播放，按 byte range 分段请求。仅 Web 接口返回分段索引，
      * 没有索引时仍需走 [playUrl]。
+     *
+     * [videos] 传入多条清晰度即开启自适应码率，播放器会在网速变化时自行切换；
+     * 只传一条则固定在该清晰度。
      */
-    abstract fun playDash(video: DashTrack, audio: DashTrack?, durationMs: Long)
+    abstract fun playDash(videos: List<DashTrack>, audio: DashTrack?, durationMs: Long)
 
     /** 准备开始播放 */
     abstract fun prepare()

@@ -708,9 +708,20 @@ class VideoPlayerV3ViewModel(
             logger.fInfo { "Load play data response success. Play data: $playData" }
 
             // 2. 解析并去重可用的清晰度 (使用 associate 替代 forEach + mutableMap)
-            val resolutionMap = playData.dashVideos.associate { video ->
-                video.quality to Resolution.fromCode(video.quality)
-                    .getShortDisplayName(BVApp.context)
+            val resolutionMap = buildMap {
+                // 自适应需要 DASH 分段索引，只有 Web 接口（且非代理）才拿得到
+                if (supportsAdaptiveStreaming(playData)) {
+                    put(
+                        Resolution.RAuto.code,
+                        Resolution.RAuto.getShortDisplayName(BVApp.context)
+                    )
+                }
+                playData.dashVideos.forEach { video ->
+                    put(
+                        video.quality,
+                        Resolution.fromCode(video.quality).getShortDisplayName(BVApp.context)
+                    )
+                }
             }
             logger.fInfo { "Video available resolution: $resolutionMap" }
 
@@ -778,6 +789,18 @@ class VideoPlayerV3ViewModel(
                 preferApiType = preferApi
             )
         }
+    }
+
+    /**
+     * 自适应要求同一编码下有多条带分段索引的流。代理播放必须固定线路，
+     * App 接口也不返回 segmentBase，这两种情况都不提供"自动"。
+     */
+    private fun supportsAdaptiveStreaming(
+        playData: dev.aaa1115910.biliapi.entity.PlayData
+    ): Boolean {
+        val proxied = Prefs.enableProxy && _uiState.value.proxyArea != ProxyArea.MainLand
+        if (proxied || playData.durationSeconds <= 0) return false
+        return playData.dashVideos.count { it.segmentBase != null } > 1
     }
 
     private fun calculateTargetQuality(availableQualities: Set<Int>, defaultQualityCode: Int): Int {
@@ -864,20 +887,39 @@ class VideoPlayerV3ViewModel(
             "Video quality：${state.availableQuality[targetQn]}, video encoding：$targetCodec"
         }
 
-        val foundVideoItem = currentPlayData.dashVideos.find {
+        val matchesCodec: (dev.aaa1115910.biliapi.entity.DashVideo) -> Boolean = {
             when (Prefs.apiType) {
-                ApiType.Web -> it.quality == targetQn && it.codecs?.startsWith(targetCodec.prefix) == true
+                ApiType.Web -> it.codecs?.startsWith(targetCodec.prefix) == true
                 ApiType.App -> {
-                    if (currentPlayData.codec.isEmpty()) it.quality == targetQn
-                    else it.quality == targetQn && it.codecs?.startsWith(targetCodec.prefix) == true
+                    if (currentPlayData.codec.isEmpty()) true
+                    else it.codecs?.startsWith(targetCodec.prefix) == true
                 }
             }
+        }
+
+        // "自动"下把同编码的各档清晰度一起交给播放器，由它按网速切换
+        val isAdaptive = targetQn == Resolution.RAuto.code
+        val adaptiveItems = if (isAdaptive) {
+            currentPlayData.dashVideos
+                .filter { matchesCodec(it) && it.segmentBase != null }
+                .sortedByDescending { it.quality }
+        } else {
+            emptyList()
+        }
+
+        val foundVideoItem = if (isAdaptive) {
+            adaptiveItems.firstOrNull()
+        } else {
+            currentPlayData.dashVideos.find { it.quality == targetQn && matchesCodec(it) }
         }
 
         val actualVideoItem = foundVideoItem ?: currentPlayData.dashVideos.firstOrNull() ?: run {
             logger.fWarn { "No available video stream found" }
             return null
         }
+
+        // 自动档没凑齐多条流时退回单条，避免建出只有一个 representation 的自适应集
+        val videoItems = adaptiveItems.takeIf { it.size > 1 } ?: listOf(actualVideoItem)
 
         var videoUrl = actualVideoItem.baseUrl
         val videoUrls = mutableListOf<String?>()
@@ -930,10 +972,11 @@ class VideoPlayerV3ViewModel(
             audioUrls = resolvedAudioUrls,
             // 代理播放必须保持在配置的线路上，不混入直连镜像，也就不走 DASH
             dash = if (proxied) null else buildDashSources(
-                video = actualVideoItem,
+                videos = videoItems,
                 audio = audioItem,
                 durationSeconds = currentPlayData.durationSeconds,
-                videoUrls = resolvedVideoUrls,
+                selectedVideoUrls = resolvedVideoUrls,
+                selectedVideo = actualVideoItem,
                 audioUrls = resolvedAudioUrls
             )
         )
@@ -943,8 +986,11 @@ class VideoPlayerV3ViewModel(
     private fun AbstractVideoPlayer.setSources(sources: PlaybackSources) {
         val dash = sources.dash
         if (dash != null) {
-            logger.info { "Play as DASH, duration=${dash.durationMs}ms" }
-            playDash(dash.video, dash.audio, dash.durationMs)
+            logger.info {
+                "Play as DASH, duration=${dash.durationMs}ms, " +
+                    "renditions=${dash.videos.map { "${it.height}p@${it.bandwidth}" }}"
+            }
+            playDash(dash.videos, dash.audio, dash.durationMs)
         } else {
             playUrl(sources.videoUrl, sources.audioUrl)
         }
@@ -954,29 +1000,55 @@ class VideoPlayerV3ViewModel(
      * 只有 Web 接口返回 segmentBase。所有镜像地址都写进 manifest，播放器可自行
      * 在其间故障转移，因此这条路径不再需要 [recoverSource]。
      */
+    /** 主线流优先，其余镜像跟在后面，全部写进 manifest 供播放器故障转移 */
+    private fun orderedCdnUrls(baseUrl: String, backUrls: List<String>): List<String> {
+        val all = (listOf(baseUrl) + backUrls).distinct()
+        return (listOf(selectOfficialCdnUrl(all)) + all).distinct()
+    }
+
+    /**
+     * 只有 Web 接口返回 segmentBase。所有镜像地址都写进 manifest，播放器可自行
+     * 在其间故障转移，因此这条路径不再需要 [recoverSource]。
+     *
+     * [videos] 多于一条时即为自适应，播放器会按网速在各档之间切换。
+     */
     private fun buildDashSources(
-        video: dev.aaa1115910.biliapi.entity.DashVideo,
+        videos: List<dev.aaa1115910.biliapi.entity.DashVideo>,
+        selectedVideo: dev.aaa1115910.biliapi.entity.DashVideo,
+        selectedVideoUrls: List<String>,
         audio: dev.aaa1115910.biliapi.entity.DashAudio?,
         durationSeconds: Int,
-        videoUrls: List<String>,
         audioUrls: List<String>
     ): DashSources? {
         if (durationSeconds <= 0) return null
-        val videoSegment = video.segmentBase ?: return null
         val audioSegment = audio?.segmentBase
         // 音轨存在却没有索引时整体退回，避免只有一路走 DASH
         if (audio != null && (audioSegment == null || audioUrls.isEmpty())) return null
+
+        val videoTracks = videos.mapNotNull { item ->
+            val segment = item.segmentBase ?: return@mapNotNull null
+            // 选中的那条已经按 CDN 偏好排好序了，直接复用
+            val urls = if (item == selectedVideo) {
+                selectedVideoUrls
+            } else {
+                orderedCdnUrls(item.baseUrl, item.backUrl)
+            }
+            if (urls.isEmpty()) return@mapNotNull null
+            DashTrack(
+                urls = urls,
+                codecs = item.codecs,
+                bandwidth = item.bandwidth,
+                initializationRange = segment.initialization,
+                indexRange = segment.indexRange,
+                width = item.width,
+                height = item.height,
+                frameRate = item.frameRate.toFloatOrNull() ?: 0f
+            )
+        }
+        if (videoTracks.isEmpty()) return null
+
         return DashSources(
-            video = DashTrack(
-                urls = videoUrls,
-                codecs = video.codecs,
-                bandwidth = video.bandwidth,
-                initializationRange = videoSegment.initialization,
-                indexRange = videoSegment.indexRange,
-                width = video.width,
-                height = video.height,
-                frameRate = video.frameRate.toFloatOrNull() ?: 0f
-            ),
+            videos = videoTracks,
             audio = audio?.let {
                 DashTrack(
                     urls = audioUrls,
@@ -996,32 +1068,42 @@ class VideoPlayerV3ViewModel(
             .filterIsInstance<HttpDataSource.HttpDataSourceException>()
             .firstOrNull() ?: return false
         val current = activeSources ?: return false
-        // DASH manifest 已包含全部镜像，播放器内部转移过了，这里不再重试
-        if (current.dash != null) return false
         val failedUrl = failure.dataSpec.uri.toString()
+        val failedHost = failure.dataSpec.uri.host
         logger.warn {
-            "Media request failed: host=${failure.dataSpec.uri.host}, " +
+            "Media request failed: host=$failedHost, " +
                 "position=${failure.dataSpec.position}, cause=${failure.cause}"
         }
-        val next = current.afterFailure(failedUrl) ?: return false
+
+        // DASH 的 manifest 里已经列了所有镜像，但播放器内部的转移并不总能兜住
+        // "unexpected end of stream" 这类错误，仍需在这里剔除故障站点后重建。
+        val currentDash = current.dash
+        val next = if (currentDash != null) {
+            val host = failedHost ?: return false
+            currentDash.withoutHost(host)?.let { current.copy(dash = it) } ?: return false
+        } else {
+            current.afterFailure(failedUrl) ?: return false
+        }
+
         val player = videoPlayer ?: return false
         val position = player.currentPosition.coerceAtLeast(0L)
-        logger.info {
-            "Retrying alternate CDN at ${position}ms: " +
-                "video=${Uri.parse(next.videoUrl).host}, audio=${next.audioUrl?.let { Uri.parse(it).host }}"
+
+        val isVideo = currentDash != null || failedUrl == current.videoUrl
+        val nextHost = if (currentDash != null) {
+            next.dash?.videos?.firstOrNull()?.urls?.firstOrNull()?.let { Uri.parse(it).host }
+        } else {
+            (if (isVideo) next.videoUrl else next.audioUrl)?.let { Uri.parse(it).host }
         }
-        // Consume the failed candidate before preparing; never reset on onPlay,
-        // otherwise streams that fail after a few seconds can loop indefinitely.
+        logger.info { "Retrying alternate CDN at ${position}ms: host=$nextHost" }
+
+        // 先消费掉失败的候选再 prepare；不要在 onPlay 里重置，
+        // 否则播放几秒后才失败的流会无限循环。
         activeSources = next
-        val isVideo = failedUrl == current.videoUrl
-        val nextUrl = if (isVideo) next.videoUrl else next.audioUrl
         viewModelScope.launch {
-            _uiEffect.emit(
-                PlayerUiEffect.SwitchingCdn(isVideo, nextUrl?.let { Uri.parse(it).host }.orEmpty())
-            )
+            _uiEffect.emit(PlayerUiEffect.SwitchingCdn(isVideo, nextHost.orEmpty()))
         }
         _uiState.update { it.copy(isBuffering = true) }
-        player.playUrl(next.videoUrl, next.audioUrl)
+        player.setSources(next)
         player.prepare()
         player.seekTo(position)
         player.start()

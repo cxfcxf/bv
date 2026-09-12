@@ -151,10 +151,12 @@ class ExoMediaPlayer(
     }
 
     @OptIn(UnstableApi::class)
-    override fun playDash(video: DashTrack, audio: DashTrack?, durationMs: Long) {
+    override fun playDash(videos: List<DashTrack>, audio: DashTrack?, durationMs: Long) {
+        require(videos.isNotEmpty()) { "playDash requires at least one video track" }
         val adaptationSets = buildList {
-            add(video.toAdaptationSet(id = 0, trackType = C.TRACK_TYPE_VIDEO))
-            audio?.let { add(it.toAdaptationSet(id = 1, trackType = C.TRACK_TYPE_AUDIO)) }
+            // 同一 AdaptationSet 内的多条 representation 才能被自适应切换
+            add(videos.toAdaptationSet(id = 0, trackType = C.TRACK_TYPE_VIDEO))
+            audio?.let { add(listOf(it).toAdaptationSet(id = 1, trackType = C.TRACK_TYPE_AUDIO)) }
         }
         val manifest = DashManifest(
             /* availabilityStartTimeMs = */ C.TIME_UNSET,
@@ -175,7 +177,18 @@ class ExoMediaPlayer(
     }
 
     @OptIn(UnstableApi::class)
-    private fun DashTrack.toAdaptationSet(id: Int, trackType: Int): AdaptationSet {
+    private fun List<DashTrack>.toAdaptationSet(id: Int, trackType: Int): AdaptationSet {
+        val representations = mapIndexed { index, track ->
+            track.toRepresentation(id = "$id-$index", trackType = trackType)
+        }
+        return AdaptationSet(
+            id.toLong(), trackType, representations,
+            emptyList(), emptyList(), emptyList()
+        )
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun DashTrack.toRepresentation(id: String, trackType: Int): Representation {
         val containerMimeType =
             if (trackType == C.TRACK_TYPE_VIDEO) MimeTypes.VIDEO_MP4 else MimeTypes.AUDIO_MP4
         val format = Format.Builder()
@@ -202,15 +215,11 @@ class ExoMediaPlayer(
             /* indexStart = */ indexStart,
             /* indexLength = */ indexLength
         )
-        val representation = Representation.newInstance(
+        return Representation.newInstance(
             /* revisionId = */ Representation.REVISION_ID_DEFAULT,
             format,
             urls.map { BaseUrl(it) },
             segmentBase
-        )
-        return AdaptationSet(
-            id.toLong(), trackType, listOf(representation),
-            emptyList(), emptyList(), emptyList()
         )
     }
 

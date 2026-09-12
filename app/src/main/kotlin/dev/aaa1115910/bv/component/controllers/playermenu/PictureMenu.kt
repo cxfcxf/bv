@@ -61,7 +61,8 @@ fun PictureMenuList(
     var selectedPictureMenuItem by remember { mutableStateOf(VideoPlayerPictureMenuItem.Resolution) }
     val qualityIdList = remember(availableQualityIds) {
         availableQualityIds
-            .sortedByDescending {it}
+            // 自动的 code 是 0，按数值排会落到最后，这里强制置顶
+            .sortedByDescending { if (it == Resolution.RAuto.code) Int.MAX_VALUE else it }
     }
     val audioList = remember(availableAudio) {
         availableAudio.sortedBy { it.ordinal }
