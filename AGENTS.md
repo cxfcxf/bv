@@ -82,7 +82,7 @@
 - Live danmaku WebSocket parsing: `bili-api/src/main/kotlin/dev/aaa1115910/biliapi/websocket/LiveDataWebSocket.kt`.
 - ExoPlayer can remain in `STATE_BUFFERING` without emitting an error or end event. The live player therefore displays buffering state and uses a 15-second watchdog to fetch a fresh signed stream URL, with up to five reconnect attempts.
 - Reset the reconnect-attempt counter only after `onPlay()`, not merely `onReady()`: `READY` can occur before frames actually resume.
-- Live playback must honor `Prefs.apiType`; the selected backend is authoritative and must not silently fall back to the other backend.
+- Live playback must honor `Prefs.playbackApiType`; the selected backend is authoritative and must not silently fall back to the other backend.
 - Web live playback uses `/xlive/web-room/v2/index/getRoomPlayInfo`, Web headers, and the live.bilibili.com referer.
 - App live playback is HTTP REST rather than gRPC. It uses `/xlive/app-room/v2/index/getRoomPlayInfo`, the regular Android live-client identity, App headers, and no Web referer. The repository-wide `android_hd` identity is rejected by this particular live endpoint.
 - Both live play-info endpoints map into the same `RoomPlayInfoV2Data`/`LiveStreamInfo` model. The App access token is optional for basic playback but should be sent when available for account-entitled qualities.
@@ -94,6 +94,22 @@
 - Watch history (`HistoryData`/`HistoryViewModel`) includes live rooms (`business == "live"`, gRPC `CARD_LIVE`). Live entries carry `liveRoomId` in `VideoCardData` and open `LivePlayerActivity` directly; watch-later/detail actions are hidden for them.
 - Keep `AppModule` in its own `AppModule.kt` file. Defining it in `BVApp.kt`, which also references the generated `.module` extension, can cause Koin KSP to defer generation and break release compilation.
 - Load `AppModule().module` and `BiliApiModule().module` side by side in `BVApp`; avoid restoring the cross-module annotation include that triggered the KSP generation issue.
+
+## API backend split (Web / App)
+
+There are two backend preferences, both `ApiType` (`Web` or `App`), both shown under 设置 → 更多设置:
+
+| Setting | Pref | Default | Covers |
+| --- | --- | --- | --- |
+| 播放接口 | `Prefs.playbackApiType` (`playback_api_type`) | `App` | Fetching VOD and live stream URLs, plus everything that must match the stream source: player User-Agent, referer, and codec matching in `VideoPlayerV3ViewModel` / `LivePlayerViewModel`. |
+| 其他接口 | `Prefs.apiType` (`api_type`) | `Web` | Everything else: home feeds, detail, search, history, favourites, follow, and the in-player side calls (video detail, 分P list, subtitles, danmaku mask, seek thumbnails, heartbeat). |
+
+- Why split: the App backend starts playback faster, but returns less information than Web for the non-playback calls.
+- When adding a call, pick the pref by what the call fetches. Only stream-URL fetching and settings that must agree with the stream source use `playbackApiType`; a call made *from* the player is not automatically a playback call.
+- The player's User-Agent and referer are chosen from `playbackApiType` at player init, so they stay consistent with where the stream URL came from.
+- "自动" (adaptive) quality needs a DASH segment index (`segmentBase`) on more than one stream. The Web backend returns it; the App backend does not, so with 播放接口 = App the "自动" entry is not offered and playback is a single fixed-quality stream that does not adapt to network speed. Proxied playback has the same limitation.
+- When the default quality is "自动" but it is not offered, `calculateTargetQuality` falls back to the highest available quality. Without that special case `RAuto` (code 0) matches no quality "at or below the default" and playback drops to the lowest one (360P).
+- Possible follow-up, not implemented: the segment index also lives in each stream file's `sidx` box, so adaptive playback on the App backend could be built by fetching the head of each stream and deriving the ranges, at the cost of one small request per quality at start-up.
 
 ## Bilibili risk control (gaia)
 

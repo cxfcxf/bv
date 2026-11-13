@@ -81,6 +81,7 @@ object LogCatcherUtil {
         appendLine("Login: ${Prefs.isLogin}")
         appendLine("Incognito Mode: ${Prefs.incognitoMode}")
         appendLine("Api Type: ${Prefs.apiType.name}")
+        appendLine("Playback Api Type: ${Prefs.playbackApiType.name}")
         appendLine("Default Resolution: ${Prefs.defaultQuality}")
         appendLine("Default Codec: ${Prefs.defaultVideoCodec.name}")
         appendLine("Default Audio: ${Prefs.defaultAudio.name}")

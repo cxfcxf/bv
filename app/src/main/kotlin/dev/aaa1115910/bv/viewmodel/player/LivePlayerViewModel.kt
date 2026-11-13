@@ -120,7 +120,7 @@ class LivePlayerViewModel(
 
     fun initPlayer(context: Context) {
         released = false
-        selectedApiType = Prefs.apiType
+        selectedApiType = Prefs.playbackApiType
         videoPlayer?.release()
         val options = VideoPlayerOptions(
             userAgent = when (selectedApiType) {

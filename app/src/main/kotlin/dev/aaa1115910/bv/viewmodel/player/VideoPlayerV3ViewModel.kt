@@ -271,11 +271,11 @@ class VideoPlayerV3ViewModel(
         videoPlayer = null
 
         val options = VideoPlayerOptions(
-            userAgent = when (Prefs.apiType) {
+            userAgent = when (Prefs.playbackApiType) {
                 ApiType.Web -> context.getString(R.string.video_player_user_agent_http)
                 ApiType.App -> context.getString(R.string.video_player_user_agent_client)
             },
-            referer = when (Prefs.apiType) {
+            referer = when (Prefs.playbackApiType) {
                 ApiType.Web -> context.getString(R.string.video_player_referer)
                 ApiType.App -> null
             },
@@ -658,7 +658,7 @@ class VideoPlayerV3ViewModel(
     private suspend fun fetchPlaybackSources(avid: Long, cid: Long, epid: Int): PlaybackSources {
         val config = loadPlaybackConfig(
             avid, cid, epid,
-            Prefs.apiType,
+            Prefs.playbackApiType,
             _uiState.value.proxyArea
         )
 
@@ -673,7 +673,7 @@ class VideoPlayerV3ViewModel(
         avid: Long,
         cid: Long,
         epid: Int = 0,
-        preferApi: ApiType = Prefs.apiType,
+        preferApi: ApiType = Prefs.playbackApiType,
         proxyArea: ProxyArea = ProxyArea.MainLand
     ): PlaybackConfig {
         logger.fInfo { "Load play url: [av=$avid, cid=$cid, preferApi=$preferApi, proxyArea=$proxyArea]" }
@@ -785,6 +785,11 @@ class VideoPlayerV3ViewModel(
         if (availableQualities.contains(defaultQualityCode)) return defaultQualityCode
 
         val sortedQualities = availableQualities.sorted()
+
+        // 默认为"自动"但当前源不支持自适应（App 接口、代理）时，退回最高清晰度，
+        // 否则 code=0 会匹配不到任何"不高于默认值"的档位而掉到最低画质
+        if (defaultQualityCode == Resolution.RAuto.code) return sortedQualities.lastOrNull() ?: 0
+
         return sortedQualities.findLast { it <= defaultQualityCode }
             ?: sortedQualities.firstOrNull()
             ?: 0
@@ -808,7 +813,7 @@ class VideoPlayerV3ViewModel(
         val state = _uiState.value
         val playData = playData ?: return null
 
-        if (Prefs.apiType == ApiType.App && playData.codec.isEmpty()) {
+        if (Prefs.playbackApiType == ApiType.App && playData.codec.isEmpty()) {
             val videoItem = playData.dashVideos
                 .find { it.quality == state.mediaProfileState.qualityId }
                 ?: playData.dashVideos.firstOrNull()
@@ -866,7 +871,7 @@ class VideoPlayerV3ViewModel(
         }
 
         val matchesCodec: (dev.aaa1115910.biliapi.entity.DashVideo) -> Boolean = {
-            when (Prefs.apiType) {
+            when (Prefs.playbackApiType) {
                 ApiType.Web -> it.codecs?.startsWith(targetCodec.prefix) == true
                 ApiType.App -> {
                     if (currentPlayData.codec.isEmpty()) true

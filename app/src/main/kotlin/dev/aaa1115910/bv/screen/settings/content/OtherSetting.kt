@@ -42,7 +42,9 @@ fun OtherSetting(
     var showPreferedApiDialog by remember { mutableStateOf(false) }
 
     var showFps by remember { mutableStateOf(Prefs.showFps) }
+    var showPlaybackApiDialog by remember { mutableStateOf(false) }
     var selectedApi by remember { mutableStateOf(Prefs.apiType) }
+    var selectedPlaybackApi by remember { mutableStateOf(Prefs.playbackApiType) }
 
     Column(
         modifier = modifier
@@ -59,8 +61,13 @@ fun OtherSetting(
         Spacer(modifier = Modifier.height(12.dp))
 
         SettingListItem(
-            title = "接口选择",
-            supportText = "当前：${selectedApi.name}",
+            title = "播放接口",
+            supportText = "获取视频和直播播放地址，App 起播更快，但不支持“自动”清晰度。当前：${selectedPlaybackApi.name}",
+            onClick = { showPlaybackApiDialog = true }
+        )
+        SettingListItem(
+            title = "其他接口",
+            supportText = "详情、搜索、历史、字幕等其余功能，Web 返回的信息更完整。当前：${selectedApi.name}",
             onClick = { showPreferedApiDialog = true }
         )
 //        SettingSwitchListItem(
@@ -122,6 +129,19 @@ fun OtherSetting(
             onSelect = {
                 Prefs.apiType = it
                 selectedApi = it
+            },
+            getDisplayName = { it.name }
+        )
+    }
+
+    if (showPlaybackApiDialog) {
+        OptionDialog(
+            options = ApiType.entries.toTypedArray(),
+            selectedOption = selectedPlaybackApi,
+            onDismiss = { showPlaybackApiDialog = false },
+            onSelect = {
+                Prefs.playbackApiType = it
+                selectedPlaybackApi = it
             },
             getDisplayName = { it.name }
         )

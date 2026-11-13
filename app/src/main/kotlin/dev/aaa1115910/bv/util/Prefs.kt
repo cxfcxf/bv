@@ -91,11 +91,20 @@ object Prefs {
     // 网络 & API
     // =========================================================================
 
+    /** 除取流以外的所有功能（详情、搜索、历史、字幕、心跳等）使用的接口 */
     var apiType by pref(
         PrefKeys.prefApiTypeKey,
         ApiType.Web,
         save = { it.ordinal },
         restore = { ApiType.entries.getOrElse(it) { ApiType.Web } }
+    )
+
+    /** 获取视频/直播播放地址使用的接口，App 接口起播更快 */
+    var playbackApiType by pref(
+        PrefKeys.prefPlaybackApiTypeKey,
+        ApiType.App,
+        save = { it.ordinal },
+        restore = { ApiType.entries.getOrElse(it) { ApiType.App } }
     )
     var enableProxy by pref(PrefKeys.prefEnableProxyKey, false)
     var proxyHttpServer by pref(PrefKeys.prefProxyHttpServerKey, "")
@@ -360,6 +369,7 @@ private object PrefKeys {
     // 网络 & API
     val prefFocusColorKey = intPreferencesKey("focus_color")
     val prefApiTypeKey = intPreferencesKey("api_type")
+    val prefPlaybackApiTypeKey = intPreferencesKey("playback_api_type")
     val prefEnableProxyKey = booleanPreferencesKey("enable_proxy")
     val prefProxyHttpServerKey = stringPreferencesKey("proxy_http_server")
     val prefProxyGRPCServerKey = stringPreferencesKey("proxy_grpc_server")
